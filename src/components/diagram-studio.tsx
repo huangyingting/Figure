@@ -73,7 +73,7 @@ async function readApiError(response: Response, fallback: string): Promise<Error
 }
 
 export function DiagramStudio() {
-  const { data: session, status: sessionStatus, update: updateSession } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const [result, setResult] = useState<DiagramResult>(demoResult);
   const [subject, setSubject] = useState("Inside a centrifugal pump");
   const [imageModel, setImageModel] = useState<ImageModel>("gpt-image-2");
@@ -497,11 +497,6 @@ export function DiagramStudio() {
             </div>
 
             {error && <div className="error-box" role="alert">{error}</div>}
-            {sessionStatus !== "loading" && !session?.user && (
-              <p className="configuration-note signin-note">
-                <Link href="/signin?callbackUrl=/studio">Sign in</Link> to generate, save, and quiz your own figures.
-              </p>
-            )}
             {session?.user && !canGenerate && status !== null && (
               <p className="configuration-note">
                 Add Azure credentials to <code>.env.local</code> to enable live generation.

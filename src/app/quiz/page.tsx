@@ -18,7 +18,6 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
 
   if (!session?.user?.id) {
     return <ProductShell active="/quiz"><main className="fx-page quiz-page"><header className="fx-title-row"><div><p><BookOpenCheck size={14} /> ACTIVE RECALL</p><h1>Quiz lab</h1><span>Test what you noticed. Remember what matters.</span></div></header>
-      <p className="configuration-note signin-note" style={{ marginBottom: 20 }}><Link href="/signin?callbackUrl=/quiz">Sign in</Link> to quiz your own figures and track mastery. This is a sample quiz.</p>
       <QuizRunner figureId={demoResult.id} title={demoResult.annotation.title} parts={demoResult.annotation.parts} imageSrc={demoResult.image.src} persist={false} />
     </main></ProductShell>;
   }

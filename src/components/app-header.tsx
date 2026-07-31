@@ -59,11 +59,15 @@ export function AppHeader({ extra }: { extra?: React.ReactNode }) {
               <button type="button" className="studio-signout" aria-label="Sign out" onClick={() => void signOut({ redirectTo: "/" })}><LogOut size={15} /></button>
             </>
           ) : (
-            <Link className="studio-signin-link" href={`/signin?callbackUrl=${encodeURIComponent(pathname)}`}>Sign in</Link>
+            <>
+              <span className="guest-badge" title="You are browsing as a guest. Sign in to create, save, and edit."><span className="guest-dot" />Guest · read-only</span>
+              <Link className="studio-signin-link" href={`/signin?callbackUrl=${encodeURIComponent(pathname)}`}>Sign in</Link>
+            </>
           )}
         </div>
 
         <div className="app-mobile">
+          {!user && <span className="guest-badge guest-badge-compact" title="You are browsing as a guest."><span className="guest-dot" />Guest</span>}
           <MobileMenu
             account={user ? { name: user.name ?? null, email: user.email ?? null, credits: user.credits } : null}
           />
