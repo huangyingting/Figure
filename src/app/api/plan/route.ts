@@ -5,6 +5,7 @@ import { ZodError } from "zod";
 
 import { AzureConfigurationError, planDiagramParts } from "@/lib/azure-openai";
 import { PlanDiagramRequestSchema } from "@/lib/contracts";
+import { auth } from "@/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -20,6 +21,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   const requestId = randomUUID();
 
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Sign in to plan a new figure.", code: "UNAUTHORIZED", requestId }, { status: 401 });
+    }
     const contentLength = Number(request.headers.get("content-length") || 0);
     if (contentLength > 32 * 1024) {
       return NextResponse.json(

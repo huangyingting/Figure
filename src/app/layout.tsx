@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 
 import "./globals.css";
+import { Providers } from "@/app/providers";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -16,15 +17,15 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Figure · AI Visual Annotation Studio",
-  description: "Turn any topic into a generated, component-aware, editable visual.",
+  title: { default: "Figure · Learn visually", template: "%s · Figure" },
+  description: "Create, collect, and master AI-generated annotated figures.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
       <body className={`${inter.variable} ${spaceGrotesk.variable}`}>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

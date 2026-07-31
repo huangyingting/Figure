@@ -1,5 +1,5 @@
 {
-  "name": "semantic-diagram-poc",
+  "name": "figure-learning-studio",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,10 +10,19 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
     "check": "npm run test && npm run typecheck && npm run lint && npm run build"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.11.3",
+    "@azure/storage-blob": "^12.28.0",
+    "@prisma/client": "^6.19.2",
+    "bcryptjs": "^3.0.2",
+    "lucide-react": "^0.468.0",
     "next": "16.2.12",
+    "next-auth": "^5.0.0-beta.32",
     "openai": "7.2.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -27,13 +36,16 @@
     "@types/react-dom": "19.2.3",
     "eslint": "10.8.0",
     "eslint-plugin-react-hooks": "7.1.1",
+    "prisma": "^6.19.2",
+    "tsx": "^4.20.6",
     "typescript": "5.9.3",
     "typescript-eslint": "8.65.0",
     "vitest": "4.1.10"
   },
   "overrides": {
     "postcss": "8.5.25",
-    "sharp": "0.35.3"
+    "sharp": "0.35.3",
+    "effect": "3.20.0"
   },
   "engines": {
     "node": ">=20.9"

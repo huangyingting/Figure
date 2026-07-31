@@ -13,6 +13,10 @@ import {
   GenerateDiagramRequestSchema,
   type DiagramResult,
 } from "@/lib/contracts";
+import { auth } from "@/auth";
+import { consumeGenerationCredit, refundGenerationCredit } from "@/lib/credits";
+import { prisma } from "@/lib/prisma";
+import { dataUrlToBuffer, getFigureStorage } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -26,8 +30,13 @@ function zodMessage(error: ZodError): string {
 
 export async function POST(request: Request): Promise<NextResponse> {
   const requestId = randomUUID();
+  let chargedUserId: string | null = null;
 
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Sign in to generate and save a figure.", code: "UNAUTHORIZED", requestId }, { status: 401 });
+    }
     const contentLength = Number(request.headers.get("content-length") || 0);
     if (contentLength > 64 * 1024) {
       return NextResponse.json(
@@ -37,14 +46,37 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const input = GenerateDiagramRequestSchema.parse(await request.json());
+    const remainingCredits = await consumeGenerationCredit(session.user.id, requestId);
+    if (remainingCredits === null) {
+      return NextResponse.json({ error: "You need at least one credit to generate a figure.", code: "INSUFFICIENT_CREDITS", requestId }, { status: 402 });
+    }
+    chargedUserId = session.user.id;
     const image = await generateAzureImage(input);
     const rawAnnotation = await locateDiagramParts(input, image.src);
     const annotation = normalizeVisionPayload(rawAnnotation, input);
 
+    const stored = await getFigureStorage().put(dataUrlToBuffer(image.src), image.mimeType, session.user.id);
+    const figure = await prisma.figure.create({
+      data: {
+        id: requestId,
+        ownerId: session.user.id,
+        title: annotation.title,
+        subject: input.subject,
+        summary: annotation.summary,
+        imageKey: stored.storageKey,
+        imageMimeType: image.mimeType,
+        imageWidth: image.width,
+        imageHeight: image.height,
+        imageModel: input.imageModel,
+        visionModel: process.env.AZURE_VISION_DEPLOYMENT || "gpt-5.6-terra",
+        annotationJson: JSON.stringify(annotation),
+      },
+    });
+
     const result: DiagramResult = {
       id: requestId,
       image: {
-        src: image.src,
+        src: `/api/figures/${figure.id}/image`,
         mimeType: image.mimeType,
         width: image.width,
         height: image.height,
@@ -64,9 +96,11 @@ export async function POST(request: Request): Promise<NextResponse> {
       headers: {
         "Cache-Control": "no-store",
         "X-Request-Id": requestId,
+        "X-Credits-Remaining": String(remainingCredits),
       },
     });
   } catch (error) {
+    if (chargedUserId) await refundGenerationCredit(chargedUserId, requestId).catch(console.error);
     if (error instanceof ZodError) {
       return NextResponse.json(
         {

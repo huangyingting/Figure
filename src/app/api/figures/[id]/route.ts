@@ -1,0 +1,37 @@
+import { NextResponse } from "next/server";
+
+import { auth } from "@/auth";
+import type { DiagramAnnotation, DiagramResult } from "@/lib/contracts";
+import { prisma } from "@/lib/prisma";
+
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const session = await auth();
+  const figure = await prisma.figure.findUnique({ where: { id } });
+  if (!figure || (!figure.isPublic && figure.ownerId !== session?.user?.id)) return NextResponse.json({ error: "Figure not found." }, { status: 404 });
+  if (figure.isPublic && figure.ownerId !== session?.user?.id) void prisma.figure.update({ where: { id }, data: { viewCount: { increment: 1 } } });
+  const result: DiagramResult = {
+    id: figure.id,
+    image: { src: `/api/figures/${id}/image`, mimeType: figure.imageMimeType, width: figure.imageWidth, height: figure.imageHeight, revisedPrompt: null },
+    annotation: JSON.parse(figure.annotationJson) as DiagramAnnotation,
+    provenance: { source: "azure-generated", imageModel: figure.imageModel, visionModel: figure.visionModel, generatedAt: figure.createdAt.toISOString(), reviewRequired: true },
+  };
+  return NextResponse.json(result);
+}
+
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const body = await request.json().catch(() => null) as { isPublic?: unknown; title?: unknown } | null;
+  const existing = await prisma.figure.findUnique({ where: { id }, select: { ownerId: true } });
+  if (!existing || existing.ownerId !== session.user.id) return NextResponse.json({ error: "Figure not found." }, { status: 404 });
+  const figure = await prisma.figure.update({
+    where: { id },
+    data: {
+      ...(typeof body?.isPublic === "boolean" ? { isPublic: body.isPublic } : {}),
+      ...(typeof body?.title === "string" && body.title.trim() ? { title: body.title.trim().slice(0, 160) } : {}),
+    },
+  });
+  return NextResponse.json({ figure });
+}

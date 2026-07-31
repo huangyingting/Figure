@@ -3,6 +3,9 @@ node_modules/
 out/
 coverage/
 *.tsbuildinfo
+.media/
+prisma/*.db
+prisma/*.db-journal
 
 # Local environment files may contain secrets.
 .env*

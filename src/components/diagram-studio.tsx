@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 
 import { AnnotationCanvas } from "@/components/annotation-canvas";
+import { CustomSelect } from "@/components/custom-select";
 import type {
   AnnotatedPart,
   AzureStatus,
@@ -69,6 +71,7 @@ async function readApiError(response: Response, fallback: string): Promise<Error
 }
 
 export function DiagramStudio() {
+  const { data: session, status: sessionStatus, update: updateSession } = useSession();
   const [result, setResult] = useState<DiagramResult>(demoResult);
   const [subject, setSubject] = useState("Inside a centrifugal pump");
   const [imageModel, setImageModel] = useState<ImageModel>("gpt-image-2");
@@ -124,7 +127,7 @@ export function DiagramStudio() {
 
   const isGenerating = stage === "planning" || stage === "rendering";
   const selectedModelReady = status?.imageModels[imageModel] ?? false;
-  const canGenerate = Boolean(status?.visionConfigured && selectedModelReady);
+  const canGenerate = Boolean(session?.user?.id && status?.visionConfigured && selectedModelReady);
   const approvedCount = result.annotation.parts.filter(
     (part) => part.reviewStatus === "approved",
   ).length;
@@ -206,6 +209,7 @@ export function DiagramStudio() {
       setSelectedId(payload.annotation.parts.find((part) => part.visible)?.id ?? null);
       setShowAnnotations(true);
       setStage("complete");
+      await updateSession();
       setNotice("Your annotated figure is ready");
       window.setTimeout(() => {
         document.getElementById("figure-workspace")?.scrollIntoView({
@@ -388,8 +392,9 @@ export function DiagramStudio() {
           <small>Visual intelligence studio</small>
         </a>
         <div className="header-meta">
-          <a className="header-link" href="#figure-workspace">Explore the studio</a>
-          <span className="header-note">Generate · Ground · Refine</span>
+          <a className="header-link" href="/discover">Discover</a>
+          <a className="header-link" href="/library">My figures</a>
+          {session?.user ? <a className="studio-credit-link" href="/credits"><strong>{session.user.credits}</strong> credits</a> : <a className="studio-signin-link" href="/signin?callbackUrl=/studio">Sign in</a>}
           <div className="connection-status" data-ready={canGenerate}>
             <span className="status-dot" />
             {status === null
@@ -468,11 +473,26 @@ export function DiagramStudio() {
 
             <div className="auto-brief-note">
               <span aria-hidden="true">✦</span>
-              Visual format, audience, and model are selected automatically
+              <p>Visual format and audience are selected automatically</p>
+              <CustomSelect
+                compact
+                label="Image model"
+                value={imageModel}
+                onChange={(value) => setImageModel(value as ImageModel)}
+                options={[
+                  { value: "gpt-image-2", label: "GPT Image 2", hint: status?.imageModels["gpt-image-2"] ? "Ready" : "Not configured" },
+                  { value: "mai-image-2.5", label: "MAI Image 2.5", hint: status?.imageModels["mai-image-2.5"] ? "Ready" : "Not configured" },
+                ]}
+              />
             </div>
 
             {error && <div className="error-box" role="alert">{error}</div>}
-            {!canGenerate && status !== null && (
+            {sessionStatus !== "loading" && !session?.user && (
+              <p className="configuration-note signin-note">
+                <a href="/signin?callbackUrl=/studio">Sign in</a> to generate, save, and quiz your own figures.
+              </p>
+            )}
+            {session?.user && !canGenerate && status !== null && (
               <p className="configuration-note">
                 Add Azure credentials to <code>.env.local</code> to enable live generation.
                 The curated sample below remains fully interactive.
@@ -673,7 +693,7 @@ export function DiagramStudio() {
       <footer className="site-footer">
         <div><strong>FIGURE</strong><span>Pixels made explainable.</span></div>
         <p>AI-generated visuals and spatial locations are drafts. Expert review is required for medical, engineering, and safety-critical use.</p>
-        <span>No server-side persistence · Semantic data stays separate</span>
+        <span>Stored securely · Semantic data stays separate</span>
       </footer>
 
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
