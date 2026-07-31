@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -28,5 +29,11 @@ export async function POST(request: Request) {
   try {
     const collection = await prisma.collection.create({ data: { ...parsed.data, ownerId: session.user.id } });
     return NextResponse.json({ collection }, { status: 201 });
-  } catch { return NextResponse.json({ error: "A collection with this name already exists." }, { status: 409 }); }
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ error: "A collection with this name already exists." }, { status: 409 });
+    }
+    console.error("Failed to create collection", error);
+    return NextResponse.json({ error: "Could not create the collection. Please try again." }, { status: 500 });
+  }
 }
