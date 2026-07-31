@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenCheck, Coins, Compass, FolderHeart, LogOut, Menu, Plus, Shapes, Sparkles, X } from "lucide-react";
+import { BookOpenCheck, Coins, Compass, FolderHeart, Heart, LogOut, Menu, Plus, Shapes, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -9,6 +9,7 @@ const nav = [
   { href: "/discover", label: "Discover", icon: Compass },
   { href: "/library", label: "My figures", icon: Shapes },
   { href: "/collections", label: "Collections", icon: FolderHeart },
+  { href: "/favorites", label: "Favorites", icon: Heart },
   { href: "/quiz", label: "Quiz lab", icon: BookOpenCheck },
 ];
 

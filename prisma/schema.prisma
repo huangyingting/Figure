@@ -22,6 +22,7 @@ model User {
   collections   Collection[]
   quizAttempts  QuizAttempt[]
   creditLedger  CreditLedger[]
+  favorites     Favorite[]
 }
 
 model Account {
@@ -71,6 +72,7 @@ model Figure {
   owner          User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   collections    CollectionFigure[]
   quizAttempts   QuizAttempt[]
+  favorites      Favorite[]
 
   @@index([ownerId, createdAt])
   @@index([isPublic, createdAt])
@@ -128,4 +130,16 @@ model CreditLedger {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+model Favorite {
+  userId    String
+  figureId  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  figure    Figure   @relation(fields: [figureId], references: [id], onDelete: Cascade)
+
+  @@id([userId, figureId])
+  @@index([userId, createdAt])
+  @@index([figureId])
 }

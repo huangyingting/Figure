@@ -28,5 +28,5 @@ export const proxy = auth((request) => {
 export default proxy;
 
 export const config = {
-  matcher: ["/library/:path*", "/collections/:path*", "/quiz/:path*", "/credits/:path*", "/account/:path*", "/signin", "/register"],
+  matcher: ["/library/:path*", "/collections/:path*", "/quiz/:path*", "/credits/:path*", "/account/:path*", "/favorites/:path*", "/signin", "/register"],
 };

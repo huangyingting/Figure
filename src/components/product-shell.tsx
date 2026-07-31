@@ -1,4 +1,4 @@
-import { BookOpenCheck, Coins, Compass, FolderHeart, LogOut, Plus, Shapes, Sparkles } from "lucide-react";
+import { BookOpenCheck, Coins, Compass, FolderHeart, Heart, LogOut, Plus, Shapes, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 import { auth, signOut } from "@/auth";
@@ -8,6 +8,7 @@ const nav = [
   { href: "/discover", label: "Discover", icon: Compass },
   { href: "/library", label: "My figures", icon: Shapes },
   { href: "/collections", label: "Collections", icon: FolderHeart },
+  { href: "/favorites", label: "Favorites", icon: Heart },
   { href: "/quiz", label: "Quiz lab", icon: BookOpenCheck },
 ];
 
