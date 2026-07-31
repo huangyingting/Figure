@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import type { DiagramAnnotation, DiagramResult } from "@/lib/contracts";
 import { prisma } from "@/lib/prisma";
+import { getFigureStorage } from "@/lib/storage";
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -34,4 +35,18 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     },
   });
   return NextResponse.json({ figure });
+}
+
+export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const existing = await prisma.figure.findUnique({ where: { id }, select: { ownerId: true, imageKey: true } });
+  if (!existing || existing.ownerId !== session.user.id) return NextResponse.json({ error: "Figure not found." }, { status: 404 });
+  await prisma.figure.delete({ where: { id } });
+  const stillReferenced = await prisma.figure.count({ where: { imageKey: existing.imageKey } });
+  if (stillReferenced === 0) {
+    await getFigureStorage().delete(existing.imageKey).catch((error) => console.error("Failed to delete figure image", error));
+  }
+  return NextResponse.json({ ok: true });
 }
