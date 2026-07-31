@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { parseStoredAnnotation } from "@/lib/annotations";
 import { prisma } from "@/lib/prisma";
-import type { DiagramAnnotation } from "@/lib/contracts";
 
 const attemptSchema = z.object({
   figureId: z.string().min(1),
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid quiz attempt." }, { status: 400 });
   const figure = await prisma.figure.findFirst({ where: { id: parsed.data.figureId, OR: [{ isPublic: true }, { ownerId: session.user.id }] }, select: { id: true, annotationJson: true } });
   if (!figure) return NextResponse.json({ error: "Figure not found." }, { status: 404 });
-  const validParts = new Set((JSON.parse(figure.annotationJson) as DiagramAnnotation).parts.map((part) => part.id));
+  const validParts = new Set(parseStoredAnnotation(figure.annotationJson).parts.map((part) => part.id));
   const answers = parsed.data.answers.map((answer) => ({ ...answer, correct: validParts.has(answer.partId) && answer.answer === answer.partId }));
   const score = answers.filter((answer) => answer.correct).length;
   const attempt = await prisma.quizAttempt.create({ data: { userId: session.user.id, figureId: figure.id, score, total: answers.length, answersJson: JSON.stringify(answers) } });

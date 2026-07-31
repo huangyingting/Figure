@@ -6,6 +6,26 @@ import type {
   VisionModelPayload,
 } from "@/lib/contracts";
 
+export function parseStoredAnnotation(annotationJson: string): DiagramAnnotation {
+  try {
+    const parsed = JSON.parse(annotationJson) as Partial<DiagramAnnotation>;
+    if (!parsed || !Array.isArray(parsed.parts)) throw new Error("missing parts");
+    return {
+      title: typeof parsed.title === "string" ? parsed.title : "Untitled figure",
+      summary: typeof parsed.summary === "string" ? parsed.summary : "",
+      parts: parsed.parts as AnnotatedPart[],
+      warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
+    };
+  } catch {
+    return {
+      title: "Untitled figure",
+      summary: "This figure's annotation data could not be read.",
+      parts: [],
+      warnings: ["The stored annotation was malformed and could not be parsed."],
+    };
+  }
+}
+
 function finite(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
-import { AnnotationUpdateSchema, type DiagramAnnotation, type DiagramResult } from "@/lib/contracts";
+import { parseStoredAnnotation } from "@/lib/annotations";
+import { AnnotationUpdateSchema, type DiagramResult } from "@/lib/contracts";
 import { prisma } from "@/lib/prisma";
 import { getFigureStorage } from "@/lib/storage";
 
@@ -13,7 +14,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const result: DiagramResult = {
     id: figure.id,
     image: { src: `/api/figures/${id}/image`, mimeType: figure.imageMimeType, width: figure.imageWidth, height: figure.imageHeight, revisedPrompt: null },
-    annotation: JSON.parse(figure.annotationJson) as DiagramAnnotation,
+    annotation: parseStoredAnnotation(figure.annotationJson),
     provenance: { source: "azure-generated", imageModel: figure.imageModel, visionModel: figure.visionModel, generatedAt: figure.createdAt.toISOString(), reviewRequired: true },
   };
   return NextResponse.json(result);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeVisionPayload } from "@/lib/annotations";
+import { normalizeVisionPayload, parseStoredAnnotation } from "@/lib/annotations";
 import type {
   GenerateDiagramRequest,
   VisionModelPayload,
@@ -87,5 +87,25 @@ describe("normalizeVisionPayload", () => {
     expect(normalized.parts[0].anchor).toEqual({ x: 0.5, y: 0.5 });
     expect(normalized.parts[0].box).toEqual({ x: 0, y: 0, width: 0, height: 0 });
     expect(normalized.parts[0].confidence).toBe(0);
+  });
+});
+
+describe("parseStoredAnnotation", () => {
+  it("returns a safe fallback for malformed JSON", () => {
+    const result = parseStoredAnnotation("{not json");
+    expect(result.parts).toEqual([]);
+    expect(result.warnings[0]).toContain("malformed");
+  });
+
+  it("returns a safe fallback when parts are missing", () => {
+    const result = parseStoredAnnotation(JSON.stringify({ title: "T", summary: "S" }));
+    expect(result.parts).toEqual([]);
+  });
+
+  it("passes through a well-formed annotation", () => {
+    const annotation = { title: "Pump", summary: "S", parts: [{ id: "case" }], warnings: [] };
+    const result = parseStoredAnnotation(JSON.stringify(annotation));
+    expect(result.title).toBe("Pump");
+    expect(result.parts).toHaveLength(1);
   });
 });
