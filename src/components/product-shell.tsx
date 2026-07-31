@@ -39,8 +39,10 @@ export async function ProductShell({ children, active }: { children: React.React
             <>
               <Link className="fx-credit-pill" href="/credits" data-active={active === "/credits"} aria-current={active === "/credits" ? "page" : undefined}><Coins size={16} /><span><strong>{session.user.credits}</strong> credits</span></Link>
               <div className="fx-account-chip">
-                <span>{session.user.name?.slice(0, 1).toUpperCase() || session.user.email?.slice(0, 1).toUpperCase() || "F"}</span>
-                <div><strong>{session.user.name || "Figure learner"}</strong><small>{session.user.email}</small></div>
+                <Link href="/account" className="fx-account-identity" data-active={active === "/account"} aria-current={active === "/account" ? "page" : undefined}>
+                  <span>{session.user.name?.slice(0, 1).toUpperCase() || session.user.email?.slice(0, 1).toUpperCase() || "F"}</span>
+                  <div><strong>{session.user.name || "Figure learner"}</strong><small>{session.user.email}</small></div>
+                </Link>
                 <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
                   <button type="submit" aria-label="Sign out"><LogOut size={15} /></button>
                 </form>
