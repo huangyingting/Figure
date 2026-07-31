@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { LogOut } from "lucide-react";
 
 import { AnnotationCanvas } from "@/components/annotation-canvas";
+import { AppHeader } from "@/components/app-header";
 import { CustomSelect } from "@/components/custom-select";
 import type {
   AnnotatedPart,
@@ -403,33 +403,8 @@ export function DiagramStudio() {
 
   return (
     <div className="app-frame">
-      <header className="topbar">
-        <Link className="brand" href="/" aria-label="Figure home">
-          <span className="brand-symbol" aria-hidden="true">
-            <i />
-            <i />
-          </span>
-          <strong>FIGURE</strong>
-          <span className="brand-divider" />
-          <small>Visual intelligence studio</small>
-        </Link>
-        <div className="header-meta">
-          <Link className="header-link" href="/discover">Discover</Link>
-          <Link className="header-link" href="/library">My figures</Link>
-          <Link className="header-link" href="/collections">Collections</Link>
-          <Link className="header-link" href="/favorites">Favorites</Link>
-          <Link className="header-link" href="/quiz">Quiz lab</Link>
-          {session?.user ? (
-            <>
-              <Link className="studio-credit-link" href="/credits"><strong>{session.user.credits}</strong> credits</Link>
-              <Link className="studio-account-chip" href="/account" aria-label="Account settings">
-                <span>{session.user.name?.slice(0, 1).toUpperCase() || session.user.email?.slice(0, 1).toUpperCase() || "F"}</span>
-              </Link>
-              <button type="button" className="studio-signout" aria-label="Sign out" onClick={() => void signOut({ redirectTo: "/" })}><LogOut size={15} /></button>
-            </>
-          ) : (
-            <Link className="studio-signin-link" href="/signin?callbackUrl=/studio">Sign in</Link>
-          )}
+      <AppHeader
+        extra={
           <div className="connection-status" data-ready={canGenerate}>
             <span className="status-dot" />
             {status === null
@@ -438,8 +413,8 @@ export function DiagramStudio() {
                 ? "Pipeline ready"
                 : "Sample mode"}
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <main>
         <section className="hero" id="top">
