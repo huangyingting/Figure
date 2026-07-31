@@ -2,19 +2,13 @@ import { ArrowRight, BookOpenCheck, FolderHeart, MousePointer2, Sparkles } from 
 import Link from "next/link";
 import Image from "next/image";
 
-import { auth } from "@/auth";
-import { FigureBrand } from "@/components/product-shell";
+import { AppHeader } from "@/components/app-header";
 
-export default async function Home() {
-  const session = await auth();
+export default function Home() {
   return (
-    <main className="marketing-page">
-      <header className="marketing-nav">
-        <FigureBrand />
-        <nav><Link href="/discover">Discover</Link><Link href="/quiz">Quiz lab</Link><Link href="/studio">Studio</Link></nav>
-        <div>{session?.user ? <Link className="nav-primary" href="/library">Open workspace <ArrowRight size={15} /></Link> : <><Link href="/signin">Sign in</Link><Link className="nav-primary" href="/register">Start creating <ArrowRight size={15} /></Link></>}</div>
-      </header>
-
+    <div className="fx-app marketing-shell">
+      <AppHeader />
+      <main className="marketing-page">
       <section className="marketing-hero">
         <div className="marketing-hero-copy">
           <p><Sparkles size={14} /> THE VISUAL LEARNING STUDIO</p>
@@ -43,5 +37,6 @@ export default async function Home() {
         </div>
       </section>
     </main>
+    </div>
   );
 }

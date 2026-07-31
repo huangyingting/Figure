@@ -39,7 +39,7 @@ export default async function AuthorPage({ params }: { params: Promise<{ id: str
   const displayName = author.name || "A Figure creator";
   const totalViews = figures.reduce((sum, figure) => sum + figure.viewCount, 0);
   return <ProductShell active="/discover"><main className="fx-page">
-    <header className="fx-page-hero"><div><p><Sparkles size={14} /> CREATOR</p><h1>{displayName}</h1><span>{figures.length} public {figures.length === 1 ? "figure" : "figures"} · {totalViews} total {totalViews === 1 ? "view" : "views"}</span></div><Link href="/discover">Back to discover</Link></header>
+    <header className="fx-title-row"><div><p><Sparkles size={14} /> CREATOR</p><h1>{displayName}</h1><span>{figures.length} public {figures.length === 1 ? "figure" : "figures"} · {totalViews} total {totalViews === 1 ? "view" : "views"}</span></div><Link href="/discover">Back to discover</Link></header>
     {figures.length
       ? <div className="figure-grid">{figures.map((figure, index) => <FigureCard key={figure.id} figure={figure} tone={["violet", "coral", "acid", "blue"][index % 4]} />)}</div>
       : <div className="empty-state"><span>✦</span><h2>No public figures yet</h2><p>This creator hasn’t published anything public.</p><Link href="/discover">Explore other figures</Link></div>}

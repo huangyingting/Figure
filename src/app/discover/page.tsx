@@ -59,7 +59,7 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
     return query ? `/discover?${query}` : "/discover";
   };
   return <ProductShell active="/discover"><main className="fx-page">
-    <header className="fx-page-hero discover-hero"><div><p><Sparkles size={14} /> COMMUNITY ATLAS</p><h1>Follow your <em>curiosity.</em></h1><span>Explore visual explanations created by learners, designers, and endlessly curious minds.</span></div><Link href="/studio">Create something new</Link></header>
+    <header className="fx-title-row"><div><p><Sparkles size={14} /> COMMUNITY ATLAS</p><h1>Follow your <em>curiosity.</em></h1><span>Explore visual explanations created by learners, designers, and endlessly curious minds.</span></div><Link href="/studio">Create something new</Link></header>
     {!signedIn && <p className="configuration-note signin-note" style={{ marginBottom: 20 }}><Link href="/signin?callbackUrl=/discover">Sign in</Link> to create figures, build collections, and save favorites. Browse the community atlas below.</p>}
     <form className="discover-search" role="search"><Search size={19} /><input name="q" defaultValue={q} aria-label="Search public figures" placeholder="Search anatomy, engineering, nature…" />{activeSort !== "popular" && <input type="hidden" name="sort" value={activeSort} />}<button>Search</button></form>
     <div className="gallery-heading"><div><p>Trending figures</p><h2>{q ? `Results for “${q}”` : activeSort === "newest" ? "Freshly published" : activeSort === "quizzed" ? "Most quizzed" : "Most explored this week"}</h2></div><div className="gallery-heading-meta"><span>{figures.length} visual {figures.length === 1 ? "lesson" : "lessons"}</span><DiscoverSort value={activeSort} /></div></div>
