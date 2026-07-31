@@ -2,6 +2,7 @@ import { BookOpenCheck, Coins, Compass, FolderHeart, LogOut, Plus, Shapes, Spark
 import Link from "next/link";
 
 import { auth, signOut } from "@/auth";
+import { MobileMenu } from "@/components/mobile-menu";
 
 const nav = [
   { href: "/discover", label: "Discover", icon: Compass },
@@ -54,7 +55,16 @@ export async function ProductShell({ children, active }: { children: React.React
         </div>
       </aside>
       <div className="fx-main">
-        <header className="fx-mobile-header"><FigureBrand compact /><Link href="/studio"><Plus size={17} />Create</Link></header>
+        <header className="fx-mobile-header">
+          <FigureBrand compact />
+          <div className="fx-mobile-header-actions">
+            <Link href="/studio"><Plus size={17} />Create</Link>
+            <MobileMenu
+              account={session?.user ? { name: session.user.name ?? null, email: session.user.email ?? null, credits: session.user.credits } : null}
+              onSignOut={async () => { "use server"; await signOut({ redirectTo: "/" }); }}
+            />
+          </div>
+        </header>
         {children}
       </div>
     </div>
