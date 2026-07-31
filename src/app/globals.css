@@ -90,6 +90,11 @@ body {
 .fx-title-row h1,.fx-page-hero h1 { margin:0; font-family:var(--font-display); font-size:clamp(38px,5vw,63px); font-weight:520; letter-spacing:-.06em; line-height:1; }
 .fx-title-row > div > span,.fx-page-hero > div > span { display:block; max-width:640px; margin-top:12px; color:var(--muted); font-size:13px; line-height:1.6; }
 .fx-title-row > a,.fx-page-hero > a { min-height:43px; display:flex; align-items:center; gap:8px; padding:0 17px; border-radius:9px; color:white; background:var(--ink); font-size:11px; font-weight:750; text-decoration:none; }
+.fx-collection-actions { display:flex; align-items:center; gap:12px; }
+.fx-collection-actions > a { min-height:43px; display:flex; align-items:center; gap:8px; padding:0 17px; border-radius:9px; color:white; background:var(--ink); font-size:11px; font-weight:750; text-decoration:none; white-space:nowrap; }
+.fx-delete-collection { min-height:43px; display:flex; align-items:center; gap:7px; padding:0 15px; border-radius:9px; border:1px solid rgba(220,38,38,.28); background:transparent; color:#dc2626; font-size:11px; font-weight:750; cursor:pointer; white-space:nowrap; transition:background .18s,border-color .18s; }
+.fx-delete-collection:hover:not(:disabled) { background:rgba(220,38,38,.08); border-color:rgba(220,38,38,.5); }
+.fx-delete-collection:disabled { opacity:.6; cursor:default; }
 
 /* Custom select: no native select is used anywhere in the product. */
 .custom-select { position:relative; min-width:188px; }
