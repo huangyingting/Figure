@@ -265,7 +265,8 @@ body {
 .notfound-page h1 { margin:0; font-family:var(--font-display); font-size:clamp(40px,5vw,62px); font-weight:520; letter-spacing:-.06em; line-height:1.02; }
 .notfound-page > section > span { display:block; margin-top:14px; color:var(--muted); font-size:var(--fs-lead); line-height:1.6; }
 .notfound-page > section > div { display:flex; flex-wrap:wrap; gap:10px; margin-top:28px; }
-.notfound-page a { min-height:48px; display:inline-flex; align-items:center; gap:8px; padding:0 18px; border-radius:10px; font-size:var(--fs-ui); font-weight:750; text-decoration:none; }
+.notfound-page a,.notfound-page button { min-height:48px; display:inline-flex; align-items:center; gap:8px; padding:0 18px; border-radius:10px; font-size:var(--fs-ui); font-weight:750; text-decoration:none; }
+.notfound-page button.notfound-primary { border:0; cursor:pointer; }
 .notfound-primary { color:white; background:var(--ink); }
 .notfound-primary:hover { background:var(--violet); }
 .notfound-secondary { border:1px solid var(--line-dark); color:var(--ink); background:rgb(255 255 255 / 60%); }
