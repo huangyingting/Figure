@@ -1,19 +1,28 @@
 import { BookOpenCheck, Trophy } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { ProductShell } from "@/components/product-shell";
 import { QuizRunner } from "@/components/quiz-runner";
 import { parseStoredAnnotation } from "@/lib/annotations";
+import { demoResult } from "@/lib/demo-data";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = { title: "Quiz lab" };
 export const dynamic = "force-dynamic";
 
 export default async function QuizPage({ searchParams }: { searchParams: Promise<{ figure?: string }> }) {
-  const session = await auth(); if (!session?.user?.id) redirect("/signin?callbackUrl=/quiz"); const { figure: requested } = await searchParams;
+  const session = await auth();
+  const { figure: requested } = await searchParams;
+
+  if (!session?.user?.id) {
+    return <ProductShell active="/quiz"><main className="fx-page quiz-page"><header className="fx-title-row"><div><p><BookOpenCheck size={14} /> ACTIVE RECALL</p><h1>Quiz lab</h1><span>Test what you noticed. Remember what matters.</span></div></header>
+      <p className="configuration-note signin-note" style={{ marginBottom: 20 }}><Link href="/signin?callbackUrl=/quiz">Sign in</Link> to quiz your own figures and track mastery. This is a sample quiz.</p>
+      <QuizRunner figureId={demoResult.id} title={demoResult.annotation.title} parts={demoResult.annotation.parts} imageSrc={demoResult.image.src} persist={false} />
+    </main></ProductShell>;
+  }
+
   const figures = await prisma.figure.findMany({ where: { OR: [{ ownerId: session.user.id }, { isPublic: true }] }, orderBy: { createdAt: "desc" }, take: 20, select: { id: true, title: true, annotationJson: true } });
   const selected = figures.find((item) => item.id === requested) ?? figures[0];
   const attempts = await prisma.quizAttempt.findMany({ where: { userId: session.user.id }, orderBy: { completedAt: "desc" }, take: 5, include: { figure: { select: { title: true } } } });

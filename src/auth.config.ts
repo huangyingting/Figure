@@ -7,7 +7,7 @@ export const authConfig = {
   pages: { signIn: "/signin" },
 } satisfies NextAuthConfig;
 
-export const protectedRoutes = ["/library", "/collections", "/quiz", "/credits", "/account", "/favorites"];
+export const protectedRoutes = ["/library", "/collections", "/credits", "/account", "/favorites"];
 export const guestOnlyRoutes = ["/signin", "/register"];
 
 export function isMatch(pathname: string, routes: string[]) {
