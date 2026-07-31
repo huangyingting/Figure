@@ -12,10 +12,19 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const session = await auth();
-  const figure = await prisma.figure.findUnique({ where: { id }, select: { title: true, summary: true, isPublic: true, ownerId: true } });
+  const figure = await prisma.figure.findUnique({ where: { id }, select: { title: true, summary: true, isPublic: true, ownerId: true, imageWidth: true, imageHeight: true } });
   // Metadata must honour the same visibility rule as the page, or private titles leak through the 404.
   if (!figure || (!figure.isPublic && figure.ownerId !== session?.user?.id)) return { title: "Figure not found" };
-  return { title: figure.title, description: figure.summary };
+  // Only public figures get a crawlable preview image; the image route rejects unauthenticated private reads.
+  const images = figure.isPublic
+    ? [{ url: `/api/figures/${id}/image`, width: figure.imageWidth, height: figure.imageHeight, alt: figure.title }]
+    : undefined;
+  return {
+    title: figure.title,
+    description: figure.summary,
+    openGraph: { title: figure.title, description: figure.summary, type: "article", images },
+    twitter: { card: "summary_large_image", title: figure.title, description: figure.summary, images },
+  };
 }
 
 export default async function FigurePage({ params }: { params: Promise<{ id: string }> }) {
