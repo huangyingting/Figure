@@ -10,21 +10,25 @@ export interface FigureCardData {
   viewCount: number;
   createdAt: Date;
   ownerId?: string;
+  imageSrc?: string;
+  href?: string;
   _count?: { collections: number; quizAttempts: number };
   owner?: { name: string | null; image: string | null };
 }
 
 export function FigureCard({ figure, tone = "violet" }: { figure: FigureCardData; tone?: string }) {
+  const href = figure.href ?? `/figures/${figure.id}`;
+  const imageSrc = figure.imageSrc ?? `/api/figures/${figure.id}/image`;
   return (
     <article className="figure-card" data-tone={tone}>
-      <Link className="figure-card-image" href={`/figures/${figure.id}`}>
+      <Link className="figure-card-image" href={href}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`/api/figures/${figure.id}/image`} alt="" />
+        <img src={imageSrc} alt="" />
         <span>{figure.imageModel.replace("mai-image-2.5", "MAI Image")}</span>
       </Link>
       <div className="figure-card-copy">
         <p>{figure.subject}</p>
-        <Link href={`/figures/${figure.id}`}><h3>{figure.title}</h3></Link>
+        <Link href={href}><h3>{figure.title}</h3></Link>
         <span>{figure.summary}</span>
         <footer>
           {figure.ownerId
