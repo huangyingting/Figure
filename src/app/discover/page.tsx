@@ -26,7 +26,7 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
   const rows = await prisma.figure.findMany({
     where,
     orderBy: sortOrders[activeSort], skip: (currentPage - 1) * pageSize, take: pageSize + 1,
-    select: { id: true, title: true, subject: true, summary: true, imageModel: true, viewCount: true, createdAt: true, owner: { select: { name: true, image: true } }, _count: { select: { collections: true, quizAttempts: true } } },
+    select: { id: true, title: true, subject: true, summary: true, imageModel: true, viewCount: true, createdAt: true, ownerId: true, owner: { select: { name: true, image: true } }, _count: { select: { collections: true, quizAttempts: true } } },
   });
   const hasNext = rows.length > pageSize;
   const figures = rows.slice(0, pageSize);

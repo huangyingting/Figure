@@ -9,6 +9,7 @@ export interface FigureCardData {
   imageModel: string;
   viewCount: number;
   createdAt: Date;
+  ownerId?: string;
   _count?: { collections: number; quizAttempts: number };
   owner?: { name: string | null; image: string | null };
 }
@@ -26,7 +27,9 @@ export function FigureCard({ figure, tone = "violet" }: { figure: FigureCardData
         <Link href={`/figures/${figure.id}`}><h3>{figure.title}</h3></Link>
         <span>{figure.summary}</span>
         <footer>
-          <div className="figure-author"><i>{figure.owner?.name?.slice(0, 1) || "F"}</i>{figure.owner?.name || "You"}</div>
+          {figure.ownerId
+            ? <Link className="figure-author" href={`/authors/${figure.ownerId}`}><i>{figure.owner?.name?.slice(0, 1) || "F"}</i>{figure.owner?.name || "Anonymous"}</Link>
+            : <div className="figure-author"><i>{figure.owner?.name?.slice(0, 1) || "F"}</i>{figure.owner?.name || "You"}</div>}
           <div><span><Eye size={14} />{figure.viewCount}</span><span><Layers3 size={14} />{figure._count?.collections || 0}</span><span><BookOpenCheck size={14} />{figure._count?.quizAttempts || 0}</span></div>
         </footer>
       </div>
