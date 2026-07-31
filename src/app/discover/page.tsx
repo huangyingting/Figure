@@ -18,8 +18,8 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
   });
   return <ProductShell active="/discover"><main className="fx-page">
     <header className="fx-page-hero discover-hero"><div><p><Sparkles size={14} /> COMMUNITY ATLAS</p><h1>Follow your <em>curiosity.</em></h1><span>Explore visual explanations created by learners, designers, and endlessly curious minds.</span></div><Link href="/studio">Create something new</Link></header>
-    <form className="discover-search"><Search size={19} /><input name="q" defaultValue={q} placeholder="Search anatomy, engineering, nature…" /><button>Search</button></form>
-    <div className="gallery-heading"><div><p>Trending figures</p><h2>{q ? `Results for “${q}”` : "Most explored this week"}</h2></div><span>{figures.length} visual lessons</span></div>
+    <form className="discover-search" role="search"><Search size={19} /><input name="q" defaultValue={q} aria-label="Search public figures" placeholder="Search anatomy, engineering, nature…" /><button>Search</button></form>
+    <div className="gallery-heading"><div><p>Trending figures</p><h2>{q ? `Results for “${q}”` : "Most explored this week"}</h2></div><span>{figures.length} visual {figures.length === 1 ? "lesson" : "lessons"}</span></div>
     {figures.length ? <div className="figure-grid">{figures.map((figure, index) => <FigureCard key={figure.id} figure={figure} tone={["violet", "coral", "acid", "blue"][index % 4]} />)}</div> : <div className="empty-state"><span>✦</span><h2>No figures found</h2><p>Try another topic or create the first one.</p><Link href="/studio">Open the studio</Link></div>}
   </main></ProductShell>;
 }

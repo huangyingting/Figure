@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 
 import { AnnotationCanvas } from "@/components/annotation-canvas";
 import { CustomSelect } from "@/components/custom-select";
@@ -382,7 +383,7 @@ export function DiagramStudio() {
   return (
     <div className="app-frame">
       <header className="topbar">
-        <a className="brand" href="#top" aria-label="Figure home">
+        <Link className="brand" href="/" aria-label="Figure home">
           <span className="brand-symbol" aria-hidden="true">
             <i />
             <i />
@@ -390,11 +391,13 @@ export function DiagramStudio() {
           <strong>FIGURE</strong>
           <span className="brand-divider" />
           <small>Visual intelligence studio</small>
-        </a>
+        </Link>
         <div className="header-meta">
-          <a className="header-link" href="/discover">Discover</a>
-          <a className="header-link" href="/library">My figures</a>
-          {session?.user ? <a className="studio-credit-link" href="/credits"><strong>{session.user.credits}</strong> credits</a> : <a className="studio-signin-link" href="/signin?callbackUrl=/studio">Sign in</a>}
+          <Link className="header-link" href="/discover">Discover</Link>
+          <Link className="header-link" href="/library">My figures</Link>
+          <Link className="header-link" href="/collections">Collections</Link>
+          <Link className="header-link" href="/quiz">Quiz lab</Link>
+          {session?.user ? <Link className="studio-credit-link" href="/credits"><strong>{session.user.credits}</strong> credits</Link> : <Link className="studio-signin-link" href="/signin?callbackUrl=/studio">Sign in</Link>}
           <div className="connection-status" data-ready={canGenerate}>
             <span className="status-dot" />
             {status === null
@@ -489,7 +492,7 @@ export function DiagramStudio() {
             {error && <div className="error-box" role="alert">{error}</div>}
             {sessionStatus !== "loading" && !session?.user && (
               <p className="configuration-note signin-note">
-                <a href="/signin?callbackUrl=/studio">Sign in</a> to generate, save, and quiz your own figures.
+                <Link href="/signin?callbackUrl=/studio">Sign in</Link> to generate, save, and quiz your own figures.
               </p>
             )}
             {session?.user && !canGenerate && status !== null && (
@@ -536,6 +539,11 @@ export function DiagramStudio() {
                 </div>
                 <div><strong>Review progress</strong><small>{approvedCount} of {result.annotation.parts.length} approved</small></div>
               </div>
+              {result.provenance.source !== "offline-demo" && (
+                <Link className="workspace-open-figure" href={`/figures/${result.id}`}>
+                  Open figure page <span aria-hidden="true">→</span>
+                </Link>
+              )}
               <button type="button" onClick={() => void copyAnnotations()}>Copy JSON</button>
               <button type="button" onClick={exportAnnotations}>Export JSON</button>
               <button type="button" className="action-primary" onClick={downloadImage}>

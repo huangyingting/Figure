@@ -6,6 +6,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { compare } from "bcryptjs";
 import { z } from "zod";
 
+import { authConfig } from "@/auth.config";
 import { prisma } from "@/lib/prisma";
 
 const credentialsSchema = z.object({
@@ -39,10 +40,9 @@ const providers = [
 ];
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   adapter: PrismaAdapter(prisma),
   providers,
-  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
-  pages: { signIn: "/signin" },
   callbacks: {
     async jwt({ token, user }) {
       if (user?.id) token.userId = user.id;

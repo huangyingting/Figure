@@ -22,6 +22,7 @@ export function CustomSelect({
   const [active, setActive] = useState(Math.max(0, options.findIndex((option) => option.value === value)));
   const root = useRef<HTMLDivElement>(null);
   const listId = useId();
+  const optionId = (index: number) => `${listId}-option-${index}`;
   const selected = options.find((option) => option.value === value) ?? options[0];
 
   useEffect(() => {
@@ -48,6 +49,7 @@ export function CustomSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
+        aria-activedescendant={open ? optionId(active) : undefined}
         onClick={() => setOpen((current) => !current)}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -55,6 +57,10 @@ export function CustomSelect({
             const delta = event.key === "ArrowDown" ? 1 : -1;
             const next = (active + delta + options.length) % options.length;
             setActive(next);
+            setOpen(true);
+          } else if (event.key === "Home" || event.key === "End") {
+            event.preventDefault();
+            setActive(event.key === "Home" ? 0 : options.length - 1);
             setOpen(true);
           } else if (event.key === "Enter" && open) {
             event.preventDefault(); choose(active);
@@ -70,6 +76,7 @@ export function CustomSelect({
             <button
               type="button"
               key={option.value}
+              id={optionId(index)}
               role="option"
               aria-selected={option.value === value}
               data-active={index === active}
