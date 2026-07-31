@@ -49,5 +49,11 @@
   },
   "engines": {
     "node": ">=20.9"
+  },
+  "allowScripts": {
+    "@prisma/client@6.19.2": true,
+    "@prisma/engines@6.19.2": true,
+    "esbuild@0.28.1": true,
+    "prisma@6.19.2": true
   }
 }
