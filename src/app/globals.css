@@ -97,6 +97,8 @@ body {
 .collection-figure-slot:hover .collection-figure-remove,.collection-figure-remove:focus-visible { opacity:1; }
 .collection-figure-remove:hover:not(:disabled) { background:#dc2626; }
 .collection-figure-remove:disabled { opacity:.5; cursor:default; }
+.fx-edit-collection { min-height:43px; display:flex; align-items:center; gap:7px; padding:0 15px; border-radius:9px; border:1px solid var(--line-dark); background:white; color:var(--ink); font-size:11px; font-weight:750; cursor:pointer; white-space:nowrap; transition:background .18s,border-color .18s; }
+.fx-edit-collection:hover { background:#f2f1ed; }
 .fx-delete-collection { min-height:43px; display:flex; align-items:center; gap:7px; padding:0 15px; border-radius:9px; border:1px solid rgba(220,38,38,.28); background:transparent; color:#dc2626; font-size:11px; font-weight:750; cursor:pointer; white-space:nowrap; transition:background .18s,border-color .18s; }
 .fx-delete-collection:hover:not(:disabled) { background:rgba(220,38,38,.08); border-color:rgba(220,38,38,.5); }
 .fx-delete-collection:disabled { opacity:.6; cursor:default; }

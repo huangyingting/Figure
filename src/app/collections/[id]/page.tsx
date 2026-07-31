@@ -6,6 +6,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { CollectionFigureCard } from "@/components/collection-figure-card";
 import { DeleteCollectionButton } from "@/components/delete-collection-button";
+import { EditCollectionButton } from "@/components/edit-collection-button";
 import { ProductShell } from "@/components/product-shell";
 import { prisma } from "@/lib/prisma";
 
@@ -36,7 +37,7 @@ export default async function CollectionPage({ params }: { params: Promise<{ id:
   if (!collection) notFound();
   return <ProductShell active="/collections"><main className="fx-page">
     <Link className="fx-back-link" href="/collections"><ArrowLeft size={15} />All collections</Link>
-    <header className="fx-title-row"><div><p><FolderHeart size={14} /> COLLECTION</p><h1>{collection.name}</h1><span>{collection.description || "A space for connected visual ideas."}</span></div><div className="fx-collection-actions"><Link href="/discover">Add more figures</Link><DeleteCollectionButton collectionId={collection.id} collectionName={collection.name} /></div></header>
+    <header className="fx-title-row"><div><p><FolderHeart size={14} /> COLLECTION</p><h1>{collection.name}</h1><span>{collection.description || "A space for connected visual ideas."}</span></div><div className="fx-collection-actions"><Link href="/discover">Add more figures</Link><EditCollectionButton collectionId={collection.id} name={collection.name} description={collection.description} color={collection.color} /><DeleteCollectionButton collectionId={collection.id} collectionName={collection.name} /></div></header>
     {collection.figures.length
       ? <div className="figure-grid">{collection.figures.map(({ figure }, index) => <CollectionFigureCard key={figure.id} figure={figure} collectionId={collection.id} tone={["violet", "blue", "coral", "acid"][index % 4]} />)}</div>
       : <div className="empty-state large"><span>✦</span><h2>This collection is empty.</h2><p>Open any figure and use “Add to collection” to gather it here.</p><Link href="/discover">Browse figures</Link></div>}
