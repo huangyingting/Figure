@@ -2,15 +2,21 @@ import OpenAI from "openai";
 
 import {
   type AzureStatus,
+  type DiagramPlan,
+  DiagramPlanSchema,
   type DiagramImage,
   type GenerateDiagramRequest,
   type ImageModel,
+  type PlanDiagramRequest,
   type VisionModelPayload,
   VisionModelPayloadSchema,
+  diagramPlanJsonSchema,
   visionAnnotationJsonSchema,
 } from "@/lib/contracts";
 import {
   buildImagePrompt,
+  buildPlanSystemPrompt,
+  buildPlanUserPrompt,
   buildVisionSystemPrompt,
   buildVisionUserPrompt,
 } from "@/lib/prompts";
@@ -97,12 +103,12 @@ function requireConfig(
 ): AzureResourceConfig {
   if (!config.endpoint) {
     throw new AzureConfigurationError(
-      `${label} 缺少 Azure endpoint。请设置专用 endpoint 或 AZURE_OPENAI_ENDPOINT。`,
+      `${label} is missing an Azure endpoint. Set a dedicated endpoint or AZURE_OPENAI_ENDPOINT.`,
     );
   }
   if (!config.apiKey) {
     throw new AzureConfigurationError(
-      `${label} 缺少 API key。请设置专用 key 或 AZURE_OPENAI_API_KEY。`,
+      `${label} is missing an API key. Set a dedicated key or AZURE_OPENAI_API_KEY.`,
     );
   }
   return config;
@@ -186,7 +192,7 @@ function mimeTypeFor(format: string | undefined): string {
 async function remoteImageToDataURL(url: string, mimeType: string): Promise<string> {
   const parsed = new URL(url);
   if (parsed.protocol !== "https:") {
-    throw new Error("图片服务返回了非 HTTPS URL，已拒绝下载。 ");
+    throw new Error("The image service returned a non-HTTPS URL, so the download was blocked.");
   }
 
   const response = await fetch(parsed, {
@@ -194,15 +200,15 @@ async function remoteImageToDataURL(url: string, mimeType: string): Promise<stri
     redirect: "follow",
   });
   if (!response.ok) {
-    throw new Error(`图片下载失败（HTTP ${response.status}）。`);
+    throw new Error(`Image download failed (HTTP ${response.status}).`);
   }
   const declaredLength = Number(response.headers.get("content-length") || 0);
   if (declaredLength > 25 * 1024 * 1024) {
-    throw new Error("图片响应超过 25 MB 安全上限。 ");
+    throw new Error("The image response exceeds the 25 MB safety limit.");
   }
   const bytes = Buffer.from(await response.arrayBuffer());
   if (bytes.byteLength > 25 * 1024 * 1024) {
-    throw new Error("图片响应超过 25 MB 安全上限。 ");
+    throw new Error("The image response exceeds the 25 MB safety limit.");
   }
   const responseMime = response.headers.get("content-type")?.split(";")[0];
   return `data:${responseMime || mimeType};base64,${bytes.toString("base64")}`;
@@ -230,7 +236,7 @@ function imageFromResponseItem(
       revisedPrompt: item.revised_prompt ?? null,
     }));
   }
-  throw new Error("Azure 图片响应缺少 b64_json 或 url。 ");
+  throw new Error("The Azure image response contains neither b64_json nor a URL.");
 }
 
 async function generateMaiImage(
@@ -253,11 +259,11 @@ async function generateMaiImage(
     signal: AbortSignal.timeout(requestTimeout()),
   });
   if (!response.ok) {
-    throw new Error(`MAI 图片生成失败（HTTP ${response.status}）。`);
+    throw new Error(`MAI image generation failed (HTTP ${response.status}).`);
   }
   const payload = (await response.json()) as { data?: ImageResponseItem[] };
   const item = payload.data?.[0];
-  if (!item) throw new Error("MAI 图片模型没有返回图片。 ");
+  if (!item) throw new Error("The MAI image model returned no image.");
   const result = await imageFromResponseItem(item, "image/png");
   return { src: result.src, revisedPrompt: null };
 }
@@ -267,8 +273,8 @@ export async function generateAzureImage(
 ): Promise<GeneratedImage> {
   const imageLabel =
     input.imageModel === "mai-image-2.5"
-      ? "MAI 图片模型（AZURE_MAI_IMAGE_ENDPOINT 需指向 .services.ai.azure.com 资源）"
-      : "GPT 图片模型";
+      ? "MAI image model (AZURE_MAI_IMAGE_ENDPOINT must point to a .services.ai.azure.com resource)"
+      : "GPT image model";
   const config = requireConfig(imageConfig(input.imageModel), imageLabel);
   const prompt = buildImagePrompt(input);
   const dimensions = configuredImageSize(input.imageModel);
@@ -295,7 +301,7 @@ export async function generateAzureImage(
   });
 
   const item = response.data?.[0];
-  if (!item) throw new Error("Azure 图片模型没有返回图片。 ");
+  if (!item) throw new Error("The Azure image model returned no image.");
   const outputFormat =
     "output_format" in item ? String(item.output_format) : "png";
   const mimeType = mimeTypeFor(outputFormat);
@@ -316,15 +322,80 @@ function parseStructuredText(text: string): VisionModelPayload {
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw new Error("视觉模型没有返回有效 JSON。 ");
+    throw new Error("The vision model did not return valid JSON.");
   }
   return VisionModelPayloadSchema.parse(parsed);
+}
+
+function parsePlanText(text: string): DiagramPlan {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("The planning model did not return valid JSON.");
+  }
+  return DiagramPlanSchema.parse(parsed);
 }
 
 function selectedVisionApi(): VisionApi {
   return process.env.AZURE_VISION_API === "chat-completions"
     ? "chat-completions"
     : "responses";
+}
+
+export async function planDiagramParts(
+  input: PlanDiagramRequest,
+): Promise<DiagramPlan> {
+  const config = requireConfig(visionConfig(), "Planning model");
+
+  if (selectedVisionApi() === "chat-completions") {
+    const response = await client(config).chat.completions.create({
+      model: config.deployment,
+      messages: [
+        { role: "system", content: buildPlanSystemPrompt() },
+        { role: "user", content: buildPlanUserPrompt(input) },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "diagram_component_plan",
+          strict: true,
+          schema: diagramPlanJsonSchema,
+        },
+      },
+    });
+    const text = response.choices[0]?.message.content;
+    if (!text) throw new Error("The planning model returned no content.");
+    return parsePlanText(text);
+  }
+
+  const response = await client(config).responses.create({
+    model: config.deployment,
+    store: false,
+    input: [
+      {
+        role: "system",
+        content: [{ type: "input_text", text: buildPlanSystemPrompt() }],
+      },
+      {
+        role: "user",
+        content: [{ type: "input_text", text: buildPlanUserPrompt(input) }],
+      },
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "diagram_component_plan",
+        strict: true,
+        schema: diagramPlanJsonSchema,
+      },
+    },
+    max_output_tokens: 2400,
+  });
+  if (!response.output_text) {
+    throw new Error("The planning model returned no output text.");
+  }
+  return parsePlanText(response.output_text);
 }
 
 async function locateWithResponses(
@@ -364,7 +435,7 @@ async function locateWithResponses(
   });
 
   if (!response.output_text) {
-    throw new Error("视觉模型响应中没有 output_text。 ");
+    throw new Error("The vision model response contains no output text.");
   }
   return parseStructuredText(response.output_text);
 }
@@ -400,7 +471,7 @@ async function locateWithChatCompletions(
   });
 
   const text = response.choices[0]?.message.content;
-  if (!text) throw new Error("视觉模型响应中没有文本内容。 ");
+  if (!text) throw new Error("The vision model response contains no text.");
   return parseStructuredText(text);
 }
 
@@ -408,7 +479,7 @@ export async function locateDiagramParts(
   input: GenerateDiagramRequest,
   imageDataURL: string,
 ): Promise<VisionModelPayload> {
-  const config = requireConfig(visionConfig(), "视觉模型");
+  const config = requireConfig(visionConfig(), "Vision model");
   return selectedVisionApi() === "chat-completions"
     ? locateWithChatCompletions(config, input, imageDataURL)
     : locateWithResponses(config, input, imageDataURL);

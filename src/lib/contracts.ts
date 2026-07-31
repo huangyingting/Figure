@@ -15,17 +15,52 @@ export const PartSpecSchema = z.object({
     .trim()
     .min(1)
     .max(48)
-    .regex(/^[a-z0-9][a-z0-9_-]*$/i, "部件 ID 只能包含字母、数字、_ 和 -"),
+    .regex(
+      /^[a-z0-9][a-z0-9_-]*$/i,
+      "Component IDs may only contain letters, numbers, underscores, and hyphens",
+    ),
   name: z.string().trim().min(1).max(80),
   description: z.string().trim().min(1).max(500),
 });
 
-export const GenerateDiagramRequestSchema = z
+export const DiagramBriefSchema = z.object({
+  subject: z.string().trim().min(2).max(240),
+  diagramType: DiagramTypeSchema,
+  audience: z.string().trim().min(1).max(120),
+  imageModel: ImageModelSchema,
+});
+
+export const PlanDiagramRequestSchema = z.object({
+  subject: z.string().trim().min(2).max(240),
+});
+
+export const DiagramPlanSchema = z
   .object({
-    subject: z.string().trim().min(2).max(240),
+    title: z.string().trim().min(1).max(160),
     diagramType: DiagramTypeSchema,
     audience: z.string().trim().min(1).max(120),
-    imageModel: ImageModelSchema,
+    visualDirection: z.string().trim().min(1).max(1500),
+    parts: z.array(PartSpecSchema).min(4).max(9),
+  })
+  .superRefine((value, context) => {
+    const ids = new Set<string>();
+    for (const [index, part] of value.parts.entries()) {
+      const key = part.id.toLowerCase();
+      if (ids.has(key)) {
+        context.addIssue({
+          code: "custom",
+          message: `Duplicate component ID: ${part.id}`,
+          path: ["parts", index, "id"],
+        });
+      }
+      ids.add(key);
+    }
+  });
+
+export const GenerateDiagramRequestSchema = z
+  .object({
+    ...DiagramBriefSchema.shape,
+    visualDirection: z.string().trim().min(1).max(1500).optional(),
     parts: z.array(PartSpecSchema).min(2).max(12),
   })
   .superRefine((value, context) => {
@@ -35,7 +70,7 @@ export const GenerateDiagramRequestSchema = z
       if (ids.has(key)) {
         context.addIssue({
           code: "custom",
-          message: `部件 ID 重复：${part.id}`,
+          message: `Duplicate component ID: ${part.id}`,
           path: ["parts", index, "id"],
         });
       }
@@ -46,6 +81,9 @@ export const GenerateDiagramRequestSchema = z
 export type DiagramType = z.infer<typeof DiagramTypeSchema>;
 export type ImageModel = z.infer<typeof ImageModelSchema>;
 export type PartSpec = z.infer<typeof PartSpecSchema>;
+export type DiagramBrief = z.infer<typeof DiagramBriefSchema>;
+export type DiagramPlan = z.infer<typeof DiagramPlanSchema>;
+export type PlanDiagramRequest = z.infer<typeof PlanDiagramRequestSchema>;
 export type GenerateDiagramRequest = z.infer<
   typeof GenerateDiagramRequestSchema
 >;
@@ -142,6 +180,36 @@ export const VisionModelPayloadSchema = z.object({
 });
 
 export type VisionModelPayload = z.infer<typeof VisionModelPayloadSchema>;
+
+export const diagramPlanJsonSchema = {
+  type: "object",
+  properties: {
+    title: { type: "string" },
+    diagramType: {
+      type: "string",
+      enum: ["anatomy", "cutaway", "exploded", "construction"],
+    },
+    audience: { type: "string" },
+    visualDirection: { type: "string", maxLength: 1500 },
+    parts: {
+      type: "array",
+      minItems: 4,
+      maxItems: 9,
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          name: { type: "string" },
+          description: { type: "string" },
+        },
+        required: ["id", "name", "description"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["title", "diagramType", "audience", "visualDirection", "parts"],
+  additionalProperties: false,
+} as const;
 
 const pointSchema = {
   type: "object",

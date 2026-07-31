@@ -1,0 +1,60 @@
+import { randomUUID } from "node:crypto";
+
+import { NextResponse } from "next/server";
+import { ZodError } from "zod";
+
+import { AzureConfigurationError, planDiagramParts } from "@/lib/azure-openai";
+import { PlanDiagramRequestSchema } from "@/lib/contracts";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+function zodMessage(error: ZodError): string {
+  return error.issues
+    .slice(0, 4)
+    .map((issue) => `${issue.path.join(".") || "request"}: ${issue.message}`)
+    .join("; ");
+}
+
+export async function POST(request: Request): Promise<NextResponse> {
+  const requestId = randomUUID();
+
+  try {
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > 32 * 1024) {
+      return NextResponse.json(
+        { error: "The request exceeds 32 KB.", code: "REQUEST_TOO_LARGE", requestId },
+        { status: 413 },
+      );
+    }
+
+    const input = PlanDiagramRequestSchema.parse(await request.json());
+    const plan = await planDiagramParts(input);
+    return NextResponse.json(plan, {
+      headers: { "Cache-Control": "no-store", "X-Request-Id": requestId },
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { error: zodMessage(error), code: "INVALID_REQUEST", requestId },
+        { status: 400 },
+      );
+    }
+    if (error instanceof AzureConfigurationError) {
+      return NextResponse.json(
+        { error: error.message, code: "AZURE_NOT_CONFIGURED", requestId },
+        { status: 503 },
+      );
+    }
+
+    console.error(`[diagram-plan:${requestId}] planning failed`, error);
+    return NextResponse.json(
+      {
+        error: "Component planning failed. Check the server log and request ID.",
+        code: "AZURE_PLANNING_FAILED",
+        requestId,
+      },
+      { status: 502 },
+    );
+  }
+}

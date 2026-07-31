@@ -4,7 +4,8 @@
 
 ```mermaid
 flowchart LR
-  A[主题 + 部件清单] --> B{Azure 图片部署}
+  A[主题] --> P[gpt-5.6-terra 组件规划]
+  P --> B{Azure 图片部署}
   B -->|gpt-image-2| C[无文字基础图]
   B -->|MAI-Image-2.5| C
   C --> D[gpt-5.6-terra 视觉定位]
@@ -13,7 +14,7 @@ flowchart LR
   F --> G[人工拖拽校正与复核]
 ```
 
-应用内置离线离心泵样例；没有 Azure 凭据也能体验部件选择、双向高亮、锚点拖拽、说明编辑、复核状态和 JSON 导出。真实调用只发生在服务端，浏览器不会收到 API key。
+应用内置离线离心泵样例；没有 Azure 凭据也能体验部件选择、双向高亮、锚点拖拽、说明编辑、复核状态和 JSON 导出。真实调用只发生在服务端，浏览器不会收到 API key。用户只需输入主题；组件规划、无标签图片生成与空间标注会自动串联完成。
 
 ## 快速运行
 
@@ -67,11 +68,7 @@ AZURE_VISION_API=chat-completions
 
 ## 数据约定
 
-部件输入格式为：
-
-```text
-[stable_id] 部件名称 | 面向读者的部件说明
-```
+`POST /api/plan` 会根据主题自动产生 4–9 个适合在同一张图中展示的组件。每个组件包含稳定 ID、英文名称和面向读者的说明，随后原样传递给图片生成与视觉定位阶段。
 
 视觉模型返回每个部件的：
 
@@ -86,7 +83,8 @@ AZURE_VISION_API=chat-completions
 ## API
 
 - `GET /api/status`：只返回配置状态和部署名，不返回密钥。
-- `POST /api/generate`：先生成图片，再用视觉模型定位，返回图片 data URL 与标注 JSON。
+- `POST /api/plan`：仅根据主题自动推断图像类型与受众，并生成组件清单和视觉方向。
+- `POST /api/generate`：根据规划结果生成图片，再用视觉模型定位，返回图片 data URL 与标注 JSON。
 
 PoC 不持久化图片或标注。生产化时应把图片写入受控 Blob Storage，把 JSON 版本化存储，并增加身份验证、配额、内容安全审计、任务队列和多人审核。
 

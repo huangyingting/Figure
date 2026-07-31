@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Noto_Sans_SC, Space_Grotesk } from "next/font/google";
+import { Inter, Space_Grotesk } from "next/font/google";
 
 import "./globals.css";
 
-const notoSans = Noto_Sans_SC({
-  variable: "--font-sans-cn",
+const inter = Inter({
+  variable: "--font-sans",
   subsets: ["latin"],
   display: "swap",
 });
@@ -16,14 +16,14 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Semantic Diagram · Azure AI 标注 PoC",
-  description: "将 AI 生成图像与可编辑的空间语义标注层结合。",
+  title: "Figure · AI Visual Annotation Studio",
+  description: "Turn any topic into a generated, component-aware, editable visual.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="zh-CN">
-      <body className={`${notoSans.variable} ${spaceGrotesk.variable}`}>
+    <html lang="en">
+      <body className={`${inter.variable} ${spaceGrotesk.variable}`}>
         {children}
       </body>
     </html>

@@ -10,12 +10,13 @@ interface AnnotationCanvasProps {
   image: DiagramImage;
   parts: AnnotatedPart[];
   selectedId: string | null;
+  showAnnotations?: boolean;
   onSelect: (id: string) => void;
   onAnchorChange: (id: string, point: Point) => void;
 }
 
 function shortLabel(value: string): string {
-  return value.length > 10 ? `${value.slice(0, 9)}…` : value;
+  return value.length > 16 ? `${value.slice(0, 15)}…` : value;
 }
 
 function markerTone(part: AnnotatedPart): string {
@@ -28,6 +29,7 @@ export function AnnotationCanvas({
   image,
   parts,
   selectedId,
+  showAnnotations = true,
   onSelect,
   onAnchorChange,
 }: AnnotationCanvasProps) {
@@ -68,17 +70,17 @@ export function AnnotationCanvas({
       <Image
         className="diagram-image"
         src={image.src}
-        alt="待标注的剖视图；文字说明位于独立标注层"
+        alt="Generated diagram with a separate editable annotation layer"
         width={image.width}
         height={image.height}
         unoptimized
         priority
       />
-      <svg
+      {showAnnotations && <svg
         className={`annotation-overlay${draggingId ? " is-dragging" : ""}`}
         viewBox={`0 0 ${viewWidth} ${viewHeight}`}
         role="img"
-        aria-label="可编辑的部件定位、边界框和引线标注层"
+        aria-label="Editable component locations, bounding boxes, and callout lines"
         onPointerMove={handlePointerMove}
         onPointerUp={() => setDraggingId(null)}
         onPointerCancel={() => setDraggingId(null)}
@@ -101,11 +103,14 @@ export function AnnotationCanvas({
             if (!callout) return null;
             const anchorX = part.anchor.x * viewWidth;
             const anchorY = part.anchor.y * viewHeight;
-            const labelX = callout.labelX * viewWidth;
+            const selectedPart = selectedId === part.id;
+            const pillWidth = Math.max(130, Math.min(180, part.name.length * 8 + 42));
+            const rawLabelX = callout.labelX * viewWidth;
+            const labelX = callout.side === "left"
+              ? Math.max(pillWidth + 28, rawLabelX)
+              : Math.min(viewWidth - pillWidth - 28, rawLabelX);
             const labelY = callout.labelY * viewHeight;
             const elbowX = callout.elbowX * viewWidth;
-            const selectedPart = selectedId === part.id;
-            const pillWidth = 130;
             const pillX = callout.side === "left" ? labelX - pillWidth - 18 : labelX + 18;
 
             return (
@@ -115,7 +120,7 @@ export function AnnotationCanvas({
                 data-tone={markerTone(part)}
                 role="button"
                 tabIndex={0}
-                aria-label={`选择部件 ${part.name}`}
+                aria-label={`Select component ${part.name}`}
                 onClick={() => onSelect(part.id)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
@@ -186,11 +191,11 @@ export function AnnotationCanvas({
               </g>
             );
           })}
-      </svg>
-      <div className="canvas-hint" aria-hidden="true">
+      </svg>}
+      {showAnnotations && <div className="canvas-hint" aria-hidden="true">
         <span className="drag-symbol">↔</span>
-        拖动编号校正锚点
-      </div>
+        Drag a marker to refine its anchor
+      </div>}
     </div>
   );
 }

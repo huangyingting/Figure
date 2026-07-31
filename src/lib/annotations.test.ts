@@ -65,8 +65,8 @@ describe("normalizeVisionPayload", () => {
       confidence: 0,
       reviewStatus: "ai-draft",
     });
-    expect(normalized.warnings).toContain("未定位部件：转子（rotor）");
-    expect(normalized.warnings.at(-1)).toContain("未请求部件");
+    expect(normalized.warnings).toContain("Component not located: 转子 (rotor)");
+    expect(normalized.warnings.at(-1)).toContain("unrequested component");
   });
 
   it("zeros geometry when the model says a part is not visible", () => {

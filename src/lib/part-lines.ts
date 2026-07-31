@@ -10,13 +10,13 @@ export function parsePartLines(value: string): PartSpec[] {
     .map((line) => line.trim())
     .filter(Boolean);
 
-  if (lines.length < 2) throw new Error("请至少填写两个部件。 ");
-  if (lines.length > 12) throw new Error("PoC 每次最多定位 12 个部件。 ");
+  if (lines.length < 2) throw new Error("Add at least two components.");
+  if (lines.length > 12) throw new Error("A maximum of 12 components can be located at once.");
 
   return lines.map((line, index) => {
     const separator = line.indexOf("|");
     if (separator < 0) {
-      throw new Error(`第 ${index + 1} 行缺少“|”和部件说明。`);
+      throw new Error(`Line ${index + 1} needs a “|” separator and description.`);
     }
 
     const rawName = line.slice(0, separator).trim();
@@ -25,8 +25,8 @@ export function parsePartLines(value: string): PartSpec[] {
     const id = explicit?.[1] || fallbackId(index);
     const name = (explicit?.[2] || rawName).trim();
 
-    if (!name) throw new Error(`第 ${index + 1} 行缺少部件名称。`);
-    if (!description) throw new Error(`第 ${index + 1} 行缺少部件说明。`);
+    if (!name) throw new Error(`Line ${index + 1} needs a component name.`);
+    if (!description) throw new Error(`Line ${index + 1} needs a component description.`);
     return { id, name, description };
   });
 }

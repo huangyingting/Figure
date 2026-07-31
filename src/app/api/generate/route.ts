@@ -21,7 +21,7 @@ function zodMessage(error: ZodError): string {
   return error.issues
     .slice(0, 4)
     .map((issue) => `${issue.path.join(".") || "request"}: ${issue.message}`)
-    .join("；");
+    .join("; ");
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -31,7 +31,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const contentLength = Number(request.headers.get("content-length") || 0);
     if (contentLength > 64 * 1024) {
       return NextResponse.json(
-        { error: "请求体超过 64 KB。", code: "REQUEST_TOO_LARGE", requestId },
+        { error: "The request exceeds 64 KB.", code: "REQUEST_TOO_LARGE", requestId },
         { status: 413 },
       );
     }
@@ -87,7 +87,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     console.error(`[diagram:${requestId}] generation failed`, error);
     return NextResponse.json(
       {
-        error: "Azure 生成或视觉定位失败。请查看服务端日志和 requestId。",
+        error: "Image generation or spatial grounding failed. Check the server log and request ID.",
         code: "AZURE_PIPELINE_FAILED",
         requestId,
       },

@@ -22,7 +22,7 @@ function missingPart(part: PartSpec, index: number): AnnotatedPart {
     anchor: { x: 0.5, y: 0.5 },
     box: { x: 0, y: 0, width: 0, height: 0 },
     confidence: 0,
-    evidence: "视觉模型没有返回该部件，必须人工定位。",
+    evidence: "The vision model did not return this component; manual placement is required.",
     reviewStatus: "ai-draft",
   };
 }
@@ -39,7 +39,7 @@ export function normalizeVisionPayload(
   const parts = request.parts.map((expected, index) => {
     const candidate = candidates.get(expected.id.toLowerCase());
     if (!candidate) {
-      warnings.push(`未定位部件：${expected.name}（${expected.id}）`);
+      warnings.push(`Component not located: ${expected.name} (${expected.id})`);
       return missingPart(expected, index);
     }
 
@@ -69,7 +69,7 @@ export function normalizeVisionPayload(
         ? { x: boxX, y: boxY, width: boxWidth, height: boxHeight }
         : { x: 0, y: 0, width: 0, height: 0 },
       confidence: visible ? clamp01(candidate.confidence) : 0,
-      evidence: String(candidate.evidence || "无视觉依据说明。").slice(0, 600),
+      evidence: String(candidate.evidence || "No visual evidence was provided.").slice(0, 600),
       reviewStatus: "ai-draft" as const,
     };
   });
@@ -80,13 +80,13 @@ export function normalizeVisionPayload(
   );
   if (unexpected.length > 0) {
     warnings.push(
-      `视觉模型返回了 ${unexpected.length} 个未请求部件，已安全忽略。`,
+      `The vision model returned ${unexpected.length} unrequested component(s); they were ignored.`,
     );
   }
 
   return {
     title: String(payload.title || request.subject).slice(0, 160),
-    summary: String(payload.summary || "AI 视觉定位草稿").slice(0, 1000),
+    summary: String(payload.summary || "AI spatial-grounding draft").slice(0, 1000),
     parts,
     warnings: [...new Set(warnings.map((warning) => String(warning).slice(0, 500)))],
   };

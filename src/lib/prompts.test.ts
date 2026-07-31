@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { GenerateDiagramRequest } from "@/lib/contracts";
-import { buildImagePrompt, buildVisionUserPrompt } from "@/lib/prompts";
+import {
+  buildImagePrompt,
+  buildPlanSystemPrompt,
+  buildPlanUserPrompt,
+  buildVisionUserPrompt,
+} from "@/lib/prompts";
 
 const request: GenerateDiagramRequest = {
   subject: "离心泵",
@@ -26,5 +31,23 @@ describe("diagram prompts", () => {
     const prompt = buildVisionUserPrompt(request);
     expect(prompt).toContain("[impeller]");
     expect(prompt).toContain("[shaft]");
+  });
+
+  it("plans a concise English component inventory before rendering", () => {
+    const system = buildPlanSystemPrompt();
+    const user = buildPlanUserPrompt(request);
+    expect(system).toContain("Choose 4 to 9 components");
+    expect(system).toContain("short English component names");
+    expect(user).toContain("Topic: 离心泵");
+    expect(user).toContain("Infer and return the best diagramType and audience");
+    expect(user).not.toContain("Diagram format:");
+  });
+
+  it("passes the planned visual direction into image generation", () => {
+    const prompt = buildImagePrompt({
+      ...request,
+      visualDirection: "Use a clean three-quarter cutaway with the rotor exposed.",
+    });
+    expect(prompt).toContain("Planned visual direction: Use a clean three-quarter cutaway");
   });
 });

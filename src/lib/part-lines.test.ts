@@ -13,8 +13,8 @@ describe("parsePartLines", () => {
   });
 
   it("rejects a line without a description separator", () => {
-    expect(() => parsePartLines("泵壳\n叶轮 | 旋转部件")).toThrow(
-      "第 1 行缺少",
+    expect(() => parsePartLines("Casing\nImpeller | Rotating component")).toThrow(
+      "Line 1 needs",
     );
   });
 });
