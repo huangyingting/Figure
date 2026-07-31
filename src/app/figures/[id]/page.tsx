@@ -21,6 +21,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function FigurePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params; const session = await auth(); const figure = await prisma.figure.findUnique({ where: { id } });
   if (!figure || (!figure.isPublic && figure.ownerId !== session?.user?.id)) notFound();
+  if (figure.isPublic && figure.ownerId !== session?.user?.id) {
+    await prisma.figure.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch(() => {});
+  }
   const collections = session?.user?.id ? await prisma.collection.findMany({ where: { ownerId: session.user.id }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : [];
   const result: DiagramResult = { id: figure.id, image: { src: `/api/figures/${figure.id}/image`, mimeType: figure.imageMimeType, width: figure.imageWidth, height: figure.imageHeight, revisedPrompt: null }, annotation: JSON.parse(figure.annotationJson) as DiagramAnnotation, provenance: { source: figure.id.startsWith("offline-demo") ? "offline-demo" : "azure-generated", imageModel: figure.imageModel, visionModel: figure.visionModel, generatedAt: figure.createdAt.toISOString(), reviewRequired: true } };
   const owner = figure.ownerId === session?.user?.id;
