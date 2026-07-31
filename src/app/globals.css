@@ -92,6 +92,11 @@ body {
 .fx-title-row > a,.fx-page-hero > a { min-height:43px; display:flex; align-items:center; gap:8px; padding:0 17px; border-radius:9px; color:white; background:var(--ink); font-size:11px; font-weight:750; text-decoration:none; }
 .fx-collection-actions { display:flex; align-items:center; gap:12px; }
 .fx-collection-actions > a { min-height:43px; display:flex; align-items:center; gap:8px; padding:0 17px; border-radius:9px; color:white; background:var(--ink); font-size:11px; font-weight:750; text-decoration:none; white-space:nowrap; }
+.collection-figure-slot { position:relative; }
+.collection-figure-remove { position:absolute; top:12px; right:12px; z-index:2; width:30px; height:30px; display:grid; place-items:center; border:0; border-radius:50%; color:white; background:rgb(23 24 29 / 62%); backdrop-filter:blur(6px); cursor:pointer; opacity:0; transition:opacity .18s,background .18s; }
+.collection-figure-slot:hover .collection-figure-remove,.collection-figure-remove:focus-visible { opacity:1; }
+.collection-figure-remove:hover:not(:disabled) { background:#dc2626; }
+.collection-figure-remove:disabled { opacity:.5; cursor:default; }
 .fx-delete-collection { min-height:43px; display:flex; align-items:center; gap:7px; padding:0 15px; border-radius:9px; border:1px solid rgba(220,38,38,.28); background:transparent; color:#dc2626; font-size:11px; font-weight:750; cursor:pointer; white-space:nowrap; transition:background .18s,border-color .18s; }
 .fx-delete-collection:hover:not(:disabled) { background:rgba(220,38,38,.08); border-color:rgba(220,38,38,.5); }
 .fx-delete-collection:disabled { opacity:.6; cursor:default; }
