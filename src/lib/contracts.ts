@@ -181,6 +181,34 @@ export const VisionModelPayloadSchema = z.object({
 
 export type VisionModelPayload = z.infer<typeof VisionModelPayloadSchema>;
 
+const unit = z.number().min(0).max(1);
+const ReviewStatusSchema = z.enum(["ai-draft", "human-edited", "approved"]);
+
+export const AnnotationUpdateSchema = z.object({
+  title: z.string().trim().min(1).max(160),
+  summary: z.string().trim().min(1).max(1000),
+  parts: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(48),
+        index: z.number().int().min(0).max(99),
+        name: z.string().trim().min(1).max(80),
+        description: z.string().trim().min(1).max(500),
+        visible: z.boolean(),
+        anchor: z.object({ x: unit, y: unit }),
+        box: z.object({ x: unit, y: unit, width: unit, height: unit }),
+        confidence: unit,
+        evidence: z.string().max(600),
+        reviewStatus: ReviewStatusSchema,
+      }),
+    )
+    .min(1)
+    .max(12),
+  warnings: z.array(z.string().max(500)).max(30),
+});
+
+export type AnnotationUpdate = z.infer<typeof AnnotationUpdateSchema>;
+
 export const diagramPlanJsonSchema = {
   type: "object",
   properties: {

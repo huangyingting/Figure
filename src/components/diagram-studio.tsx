@@ -86,6 +86,7 @@ export function DiagramStudio() {
   const [isFocusMode, setIsFocusMode] = useState(false);
   const canvasPanelRef = useRef<HTMLElement>(null);
   const [canvasPanelHeight, setCanvasPanelHeight] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -284,6 +285,25 @@ export function DiagramStudio() {
       setNotice("Annotation JSON copied");
     } catch {
       setError("Clipboard access is unavailable in this browser.");
+    }
+  }
+
+  async function saveEdits() {
+    if (saving || result.provenance.source === "offline-demo") return;
+    setSaving(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/figures/${result.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ annotation: result.annotation }),
+      });
+      if (!response.ok) throw await readApiError(response, "Could not save your edits.");
+      setNotice("Annotation edits saved");
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Could not save your edits.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -543,6 +563,11 @@ export function DiagramStudio() {
                 <Link className="workspace-open-figure" href={`/figures/${result.id}`}>
                   Open figure page <span aria-hidden="true">→</span>
                 </Link>
+              )}
+              {result.provenance.source !== "offline-demo" && (
+                <button type="button" onClick={() => void saveEdits()} disabled={saving}>
+                  {saving ? "Saving…" : "Save edits"}
+                </button>
               )}
               <button type="button" onClick={() => void copyAnnotations()}>Copy JSON</button>
               <button type="button" onClick={exportAnnotations}>Export JSON</button>
