@@ -2,9 +2,10 @@
 
 import { Pencil, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { CustomSelect } from "@/components/custom-select";
+import { useModalDialog } from "@/components/use-modal-dialog";
 
 interface EditCollectionButtonProps {
   collectionId: string;
@@ -19,17 +20,7 @@ export function EditCollectionButton({ collectionId, name, description, color }:
   const [tone, setTone] = useState(color);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const nameField = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!editing) return;
-    nameField.current?.focus();
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setEditing(false);
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [editing]);
+  const dialogRef = useModalDialog<HTMLElement>(editing, () => setEditing(false));
 
   function open() {
     setTone(color);
@@ -67,12 +58,12 @@ export function EditCollectionButton({ collectionId, name, description, color }:
       </button>
       {editing && (
         <div className="modal-backdrop" role="presentation" onClick={() => setEditing(false)}>
-          <section className="collection-modal" role="dialog" aria-modal="true" aria-labelledby="edit-collection-title" onClick={(event) => event.stopPropagation()}>
+          <section ref={dialogRef} className="collection-modal" role="dialog" aria-modal="true" aria-labelledby="edit-collection-title" onClick={(event) => event.stopPropagation()}>
             <button className="modal-close" onClick={() => setEditing(false)} aria-label="Close"><X /></button>
             <p>EDIT COLLECTION</p>
             <h2 id="edit-collection-title">Refine this collection.</h2>
             <form action={submit}>
-              <label><span>Name</span><input ref={nameField} name="name" required minLength={2} maxLength={60} defaultValue={name} placeholder="e.g. Mechanical systems" /></label>
+              <label><span>Name</span><input name="name" required minLength={2} maxLength={60} defaultValue={name} placeholder="e.g. Mechanical systems" /></label>
               <label><span>Description</span><textarea name="description" rows={3} maxLength={180} defaultValue={description ?? ""} placeholder="What belongs in this collection?" /></label>
               <CustomSelect label="Color" value={tone} onChange={setTone} options={[{ value: "violet", label: "Electric violet" }, { value: "coral", label: "Warm coral" }, { value: "acid", label: "Curious lime" }, { value: "blue", label: "Blueprint blue" }]} />
               {error && <p className="auth-error">{error}</p>}

@@ -4,7 +4,9 @@ import { BookOpenCheck, Coins, Compass, FolderHeart, Heart, LogOut, Menu, Plus, 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+
+import { useModalDialog } from "@/components/use-modal-dialog";
 
 const loggedInNav = [
   { href: "/discover", label: "Discover", icon: Compass },
@@ -29,15 +31,7 @@ export function MobileMenu({ account }: { account: MobileMenuAccount | null }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const nav = account ? loggedInNav : loggedOutNav;
-
-  useEffect(() => {
-    if (!open) return;
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open]);
+  const dialogRef = useModalDialog<HTMLDivElement>(open, () => setOpen(false));
 
   return (
     <>
@@ -46,7 +40,7 @@ export function MobileMenu({ account }: { account: MobileMenuAccount | null }) {
       </button>
       {open && (
         <div className="fx-mobile-menu" role="dialog" aria-modal="true" aria-label="Navigation menu">
-          <div className="fx-mobile-menu-panel">
+          <div ref={dialogRef} className="fx-mobile-menu-panel">
             <div className="fx-mobile-menu-head">
               <strong>FIGURE</strong>
               <button type="button" aria-label="Close menu" onClick={() => setOpen(false)}><X size={20} /></button>
