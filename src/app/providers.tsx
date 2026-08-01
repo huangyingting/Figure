@@ -2,6 +2,9 @@
 
 import { SessionProvider } from "next-auth/react";
 
+import { I18nProvider } from "@/components/i18n-provider";
+import type { Locale } from "@/lib/i18n-shared";
+
 // React 19.2.8's RSC dev profiler omits its nonnegative-time guard for rejected components.
 if (process.env.NODE_ENV !== "production" && typeof performance !== "undefined") {
   const guardedPerformance = performance as Performance & { __figureRscMeasureGuard?: boolean };
@@ -18,6 +21,6 @@ if (process.env.NODE_ENV !== "production" && typeof performance !== "undefined")
   }
 }
 
-export function Providers({ children }: { children: React.ReactNode }) {
-  return <SessionProvider>{children}</SessionProvider>;
+export function Providers({ children, locale }: { children: React.ReactNode; locale: Locale }) {
+  return <I18nProvider locale={locale}><SessionProvider>{children}</SessionProvider></I18nProvider>;
 }

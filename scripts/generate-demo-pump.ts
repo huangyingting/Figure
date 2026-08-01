@@ -18,6 +18,7 @@ const { loadEnvConfig } = require("@next/env") as {
 };
 
 const demoRequest: GenerateDiagramRequest = {
+  locale: "en",
   subject: "Inside a single-stage end-suction centrifugal pump",
   diagramType: "cutaway",
   audience: "curious adult learners and engineering students",

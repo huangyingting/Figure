@@ -370,7 +370,7 @@ export async function planDiagramParts(
     const response = await client(config).chat.completions.create({
       model: config.deployment,
       messages: [
-        { role: "system", content: buildPlanSystemPrompt() },
+        { role: "system", content: buildPlanSystemPrompt(input.locale) },
         { role: "user", content: buildPlanUserPrompt(input) },
       ],
       response_format: {
@@ -393,7 +393,7 @@ export async function planDiagramParts(
     input: [
       {
         role: "system",
-        content: [{ type: "input_text", text: buildPlanSystemPrompt() }],
+        content: [{ type: "input_text", text: buildPlanSystemPrompt(input.locale) }],
       },
       {
         role: "user",
@@ -427,7 +427,7 @@ async function locateWithResponses(
     input: [
       {
         role: "system",
-        content: [{ type: "input_text", text: buildVisionSystemPrompt() }],
+        content: [{ type: "input_text", text: buildVisionSystemPrompt(input.locale) }],
       },
       {
         role: "user",
@@ -466,7 +466,7 @@ async function locateWithChatCompletions(
   const response = await client(config).chat.completions.create({
     model: config.deployment,
     messages: [
-      { role: "system", content: buildVisionSystemPrompt() },
+      { role: "system", content: buildVisionSystemPrompt(input.locale) },
       {
         role: "user",
         content: [

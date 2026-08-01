@@ -10,6 +10,7 @@ import type { GenerateDiagramRequest } from "@/lib/contracts";
 
 const baseRequest: GenerateDiagramRequest = {
   subject: "A pump cutaway",
+  locale: "en",
   diagramType: "cutaway",
   audience: "students",
   imageModel: "gpt-image-2",

@@ -18,6 +18,7 @@ import { consumeGenerationCredit, refundGenerationCredit } from "@/lib/credits";
 import { BodyTooLargeError, readJson } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { dataUrlToBuffer, getFigureStorage } from "@/lib/storage";
+import { createTranslator, requestLocale } from "@/lib/i18n-shared";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -31,17 +32,18 @@ function zodMessage(error: ZodError): string {
 
 export async function POST(request: Request): Promise<NextResponse> {
   const requestId = randomUUID();
+  const t = createTranslator(requestLocale(request));
   let chargedUserId: string | null = null;
 
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Sign in to generate and save a figure.", code: "UNAUTHORIZED", requestId }, { status: 401 });
+      return NextResponse.json({ error: t("Sign in to generate and save a figure."), code: "UNAUTHORIZED", requestId }, { status: 401 });
     }
     const contentLength = Number(request.headers.get("content-length") || 0);
     if (contentLength > 64 * 1024) {
       return NextResponse.json(
-        { error: "The request exceeds 64 KB.", code: "REQUEST_TOO_LARGE", requestId },
+        { error: t("The request exceeds 64 KB."), code: "REQUEST_TOO_LARGE", requestId },
         { status: 413 },
       );
     }
@@ -49,7 +51,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const input = GenerateDiagramRequestSchema.parse(await readJson(request, 64 * 1024));
     const remainingCredits = await consumeGenerationCredit(session.user.id, requestId);
     if (remainingCredits === null) {
-      return NextResponse.json({ error: "You need at least one credit to generate a figure.", code: "INSUFFICIENT_CREDITS", requestId }, { status: 402 });
+      return NextResponse.json({ error: t("You need at least one credit to generate a figure."), code: "INSUFFICIENT_CREDITS", requestId }, { status: 402 });
     }
     chargedUserId = session.user.id;
     const image = await generateAzureImage(input);
@@ -108,7 +110,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (chargedUserId) await refundGenerationCredit(chargedUserId, requestId).catch(console.error);
     if (error instanceof BodyTooLargeError) {
       return NextResponse.json(
-        { error: "The request exceeds 64 KB.", code: "REQUEST_TOO_LARGE", requestId },
+        { error: t("The request exceeds 64 KB."), code: "REQUEST_TOO_LARGE", requestId },
         { status: 413 },
       );
     }
@@ -132,7 +134,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     console.error(`[diagram:${requestId}] generation failed`, error);
     return NextResponse.json(
       {
-        error: "Image generation or spatial grounding failed. Check the server log and request ID.",
+        error: t("Image generation or spatial grounding failed. Check the server log and request ID."),
         code: "AZURE_PIPELINE_FAILED",
         requestId,
       },

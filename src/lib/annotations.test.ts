@@ -8,6 +8,7 @@ import type {
 
 const request: GenerateDiagramRequest = {
   subject: "测试剖视图",
+  locale: "en",
   diagramType: "cutaway",
   audience: "学生",
   imageModel: "gpt-image-2",
@@ -87,6 +88,19 @@ describe("normalizeVisionPayload", () => {
     expect(normalized.parts[0].anchor).toEqual({ x: 0.5, y: 0.5 });
     expect(normalized.parts[0].box).toEqual({ x: 0, y: 0, width: 0, height: 0 });
     expect(normalized.parts[0].confidence).toBe(0);
+  });
+
+  it("uses Chinese fallback evidence and warnings for a Chinese request", () => {
+    const chineseRequest = { ...request, locale: "zh-CN" as const };
+    const normalized = normalizeVisionPayload({
+      title: "离心泵剖视图",
+      summary: "组件空间定位结果",
+      warnings: [],
+      parts: [],
+    }, chineseRequest);
+
+    expect(normalized.parts[0].evidence).toContain("需要手动定位");
+    expect(normalized.warnings[0]).toBe("未定位到组件：外壳（case）");
   });
 });
 

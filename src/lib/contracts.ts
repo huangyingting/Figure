@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const LocaleSchema = z.enum(["en", "zh-CN"]);
+
 export const DiagramTypeSchema = z.enum([
   "anatomy",
   "cutaway",
@@ -25,6 +27,7 @@ export const PartSpecSchema = z.object({
 
 export const DiagramBriefSchema = z.object({
   subject: z.string().trim().min(2).max(240),
+  locale: LocaleSchema.default("en"),
   diagramType: DiagramTypeSchema,
   audience: z.string().trim().min(1).max(120),
   imageModel: ImageModelSchema,
@@ -32,6 +35,7 @@ export const DiagramBriefSchema = z.object({
 
 export const PlanDiagramRequestSchema = z.object({
   subject: z.string().trim().min(2).max(240),
+  locale: LocaleSchema.default("en"),
 });
 
 export const DiagramPlanSchema = z
@@ -79,6 +83,7 @@ export const GenerateDiagramRequestSchema = z
   });
 
 export type DiagramType = z.infer<typeof DiagramTypeSchema>;
+export type Locale = z.infer<typeof LocaleSchema>;
 export type ImageModel = z.infer<typeof ImageModelSchema>;
 export type PartSpec = z.infer<typeof PartSpecSchema>;
 export type DiagramBrief = z.infer<typeof DiagramBriefSchema>;

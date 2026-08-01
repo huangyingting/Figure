@@ -14,7 +14,14 @@ describe("diagram planning contracts", () => {
       PlanDiagramRequestSchema.parse({
         subject: "Inside a turbine",
       }),
-    ).toEqual({ subject: "Inside a turbine" });
+    ).toEqual({ subject: "Inside a turbine", locale: "en" });
+  });
+
+  it("accepts Simplified Chinese as a first-class generation locale", () => {
+    expect(PlanDiagramRequestSchema.parse({ subject: "离心泵内部结构", locale: "zh-CN" }))
+      .toEqual({ subject: "离心泵内部结构", locale: "zh-CN" });
+    expect(() => PlanDiagramRequestSchema.parse({ subject: "Pump", locale: "zh-TW" }))
+      .toThrow();
   });
 
   it("requires a useful component inventory and rejects duplicate IDs", () => {

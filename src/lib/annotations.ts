@@ -6,6 +6,7 @@ import type {
   ReviewStatus,
   VisionModelPayload,
 } from "@/lib/contracts";
+import { translate } from "@/lib/i18n-shared";
 
 const REVIEW_STATUSES: ReadonlySet<string> = new Set([
   "ai-draft",
@@ -75,7 +76,11 @@ export function clamp01(value: unknown, fallback = 0): number {
   return Math.min(1, Math.max(0, finite(value, fallback)));
 }
 
-function missingPart(part: PartSpec, index: number): AnnotatedPart {
+function missingPart(
+  part: PartSpec,
+  index: number,
+  locale: GenerateDiagramRequest["locale"],
+): AnnotatedPart {
   return {
     ...part,
     index,
@@ -83,7 +88,7 @@ function missingPart(part: PartSpec, index: number): AnnotatedPart {
     anchor: { x: 0.5, y: 0.5 },
     box: { x: 0, y: 0, width: 0, height: 0 },
     confidence: 0,
-    evidence: "The vision model did not return this component; manual placement is required.",
+    evidence: translate(locale, "The vision model did not return this component; manual placement is required."),
     reviewStatus: "ai-draft",
   };
 }
@@ -100,8 +105,10 @@ export function normalizeVisionPayload(
   const parts = request.parts.map((expected, index) => {
     const candidate = candidates.get(expected.id.toLowerCase());
     if (!candidate) {
-      warnings.push(`Component not located: ${expected.name} (${expected.id})`);
-      return missingPart(expected, index);
+      warnings.push(request.locale === "zh-CN"
+        ? `未定位到组件：${expected.name}（${expected.id}）`
+        : `Component not located: ${expected.name} (${expected.id})`);
+      return missingPart(expected, index, request.locale);
     }
 
     const visible = Boolean(candidate.visible);
@@ -130,7 +137,7 @@ export function normalizeVisionPayload(
         ? { x: boxX, y: boxY, width: boxWidth, height: boxHeight }
         : { x: 0, y: 0, width: 0, height: 0 },
       confidence: visible ? clamp01(candidate.confidence) : 0,
-      evidence: String(candidate.evidence || "No visual evidence was provided.").slice(0, 600),
+      evidence: String(candidate.evidence || translate(request.locale, "No visual evidence was provided.")).slice(0, 600),
       reviewStatus: "ai-draft" as const,
     };
   });
@@ -141,13 +148,15 @@ export function normalizeVisionPayload(
   );
   if (unexpected.length > 0) {
     warnings.push(
-      `The vision model returned ${unexpected.length} unrequested component(s); they were ignored.`,
+      request.locale === "zh-CN"
+        ? `视觉模型返回了 ${unexpected.length} 个未请求的组件，已忽略。`
+        : `The vision model returned ${unexpected.length} unrequested component(s); they were ignored.`,
     );
   }
 
   return {
     title: String(payload.title || request.subject).slice(0, 160),
-    summary: String(payload.summary || "AI spatial-grounding draft").slice(0, 1000),
+    summary: String(payload.summary || translate(request.locale, "AI spatial-grounding draft")).slice(0, 1000),
     parts,
     warnings: [...new Set(warnings.map((warning) => String(warning).slice(0, 500)))],
   };

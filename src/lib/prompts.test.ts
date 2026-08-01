@@ -5,11 +5,13 @@ import {
   buildImagePrompt,
   buildPlanSystemPrompt,
   buildPlanUserPrompt,
+  buildVisionSystemPrompt,
   buildVisionUserPrompt,
 } from "@/lib/prompts";
 
 const request: GenerateDiagramRequest = {
   subject: "离心泵",
+  locale: "en",
   diagramType: "cutaway",
   audience: "工程学生",
   imageModel: "gpt-image-2",
@@ -42,6 +44,22 @@ describe("diagram prompts", () => {
     expect(user).toContain("Topic: 离心泵");
     expect(user).toContain("Infer and return the best diagramType and audience");
     expect(user).not.toContain("Diagram format:");
+  });
+
+  it("makes Simplified Chinese the output contract for planning and annotations", () => {
+    const chineseRequest = { ...request, locale: "zh-CN" as const };
+    const planningSystem = buildPlanSystemPrompt(chineseRequest.locale);
+    const planningUser = buildPlanUserPrompt(chineseRequest);
+    const visionSystem = buildVisionSystemPrompt(chineseRequest.locale);
+    const visionUser = buildVisionUserPrompt(chineseRequest);
+
+    expect(planningSystem).toContain("Simplified Chinese (zh-CN)");
+    expect(planningSystem).toContain("component names, descriptions, summary, visual evidence, and warnings");
+    expect(planningSystem).toContain("ASCII snake_case");
+    expect(planningUser).toContain("简体中文组件清单");
+    expect(visionSystem).toContain("Simplified Chinese (zh-CN)");
+    expect(visionUser).toContain("标题、摘要、组件名称、说明、视觉证据和警告");
+    expect(visionUser).toContain("组件 ID 必须保持原样");
   });
 
   it("passes the planned visual direction into image generation", () => {

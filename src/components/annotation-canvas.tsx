@@ -5,6 +5,7 @@ import { useMemo, useState, type PointerEvent } from "react";
 
 import { layoutCallouts } from "@/lib/callout-layout";
 import type { AnnotatedPart, DiagramImage, Point } from "@/lib/contracts";
+import { useI18n } from "@/components/i18n-provider";
 
 interface AnnotationCanvasProps {
   image: DiagramImage;
@@ -30,6 +31,7 @@ export function AnnotationCanvas({
   onSelect,
   onAnchorChange,
 }: AnnotationCanvasProps) {
+  const { t } = useI18n();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const viewWidth = 1000;
   const viewHeight = (viewWidth * image.height) / image.width;
@@ -67,7 +69,7 @@ export function AnnotationCanvas({
       <Image
         className="w-full h-full block object-contain select-none"
         src={image.src}
-        alt="Generated diagram with a separate editable annotation layer"
+        alt={t("Generated diagram with a separate editable annotation layer")}
         width={image.width}
         height={image.height}
         unoptimized
@@ -77,7 +79,7 @@ export function AnnotationCanvas({
         className={`absolute inset-0 w-full h-full overflow-visible [touch-action:none]${draggingId ? " cursor-grabbing" : ""}`}
         viewBox={`0 0 ${viewWidth} ${viewHeight}`}
         role="img"
-        aria-label={editable ? "Editable component locations, bounding boxes, and callout lines" : "Component locations and callout lines"}
+        aria-label={editable ? t("Editable component locations, bounding boxes, and callout lines") : t("Component locations and callout lines")}
         onPointerMove={handlePointerMove}
         onPointerUp={() => setDraggingId(null)}
         onPointerCancel={() => setDraggingId(null)}
@@ -117,7 +119,7 @@ export function AnnotationCanvas({
                 data-selected={selectedPart}
                 role="button"
                 tabIndex={0}
-                aria-label={`Select component ${part.name}`}
+                aria-label={`${t("Select component")} ${part.name}`}
                 onClick={() => onSelect(part.id)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
@@ -177,7 +179,7 @@ export function AnnotationCanvas({
       </svg>}
       {showAnnotations && editable && <div className="absolute left-3 bottom-3 inline-flex items-center gap-[7px] px-[9px] py-1.5 border border-[rgb(255_255_255_/_55%)] rounded-[4px] text-[#454138] bg-[rgb(255_255_255_/_82%)] [backdrop-filter:blur(8px)] text-micro font-bold pointer-events-none max-[580px]:hidden" aria-hidden="true">
         <span className="text-pine font-display text-[13px]">↔</span>
-        Drag a marker to refine its anchor
+        {t("Drag a marker to refine its anchor")}
       </div>}
     </div>
   );

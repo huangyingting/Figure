@@ -7,6 +7,7 @@ import Link from "next/link";
 import { AnnotationCanvas } from "@/components/annotation-canvas";
 import { AppHeader, type HeaderUser } from "@/components/app-header";
 import { CustomSelect } from "@/components/custom-select";
+import { useI18n } from "@/components/i18n-provider";
 import type {
   AnnotatedPart,
   AzureStatus,
@@ -15,15 +16,14 @@ import type {
   ImageModel,
   Point,
 } from "@/lib/contracts";
-import { demoResult } from "@/lib/demo-data";
+import { localizedDemoResult } from "@/lib/demo-data";
 
 type GenerationStage = "idle" | "planning" | "rendering" | "complete" | "error";
 
-const promptIdeas = [
-  "Anatomy of a volcano",
-  "Inside a mechanical watch",
-  "How a wind turbine works",
-];
+const promptIdeas = {
+  en: ["Anatomy of a volcano", "Inside a mechanical watch", "How a wind turbine works"],
+  "zh-CN": ["火山的结构", "机械手表内部结构", "风力发电机如何工作"],
+} as const;
 
 function percent(value: number): string {
   return `${Math.round(value * 100)}%`;
@@ -33,14 +33,14 @@ function coordinate(value: number): string {
   return value.toFixed(3);
 }
 
-function sourceLabel(result: DiagramResult): string {
-  return result.provenance.source === "offline-demo" ? "Curated sample" : "Azure generated";
+function sourceLabel(result: DiagramResult, t: (message: string) => string): string {
+  return result.provenance.source === "offline-demo" ? t("Curated sample") : t("Azure generated");
 }
 
-function reviewLabel(part: AnnotatedPart): string {
-  if (part.reviewStatus === "approved") return "Reviewed";
-  if (part.reviewStatus === "human-edited") return "Edited";
-  return "AI draft";
+function reviewLabel(part: AnnotatedPart, t: (message: string) => string): string {
+  if (part.reviewStatus === "approved") return t("Reviewed");
+  if (part.reviewStatus === "human-edited") return t("Edited");
+  return t("AI draft");
 }
 
 function pipelineState(
@@ -79,9 +79,10 @@ export function DiagramStudio({
   headerUser: HeaderUser | null;
   initialSubject?: string;
 }) {
+  const { locale, t } = useI18n();
   const { data: session, update: updateSession } = useSession();
-  const [result, setResult] = useState<DiagramResult>(demoResult);
-  const [subject, setSubject] = useState(initialSubject ?? "Inside a centrifugal pump");
+  const [result, setResult] = useState<DiagramResult>(() => localizedDemoResult(locale));
+  const [subject, setSubject] = useState(initialSubject ?? (locale === "zh-CN" ? "离心泵内部结构" : "Inside a centrifugal pump"));
   const [imageModel, setImageModel] = useState<ImageModel>("gpt-image-2");
   const [selectedId, setSelectedId] = useState<string | null>("impeller");
   const [status, setStatus] = useState<AzureStatus | null>(null);
@@ -177,7 +178,7 @@ export function DiagramStudio({
   async function generate() {
     const cleanSubject = subject.trim();
     if (cleanSubject.length < 2) {
-      setError("Enter a topic with at least two characters.");
+      setError(t("Enter a topic with at least two characters."));
       return;
     }
 
@@ -186,7 +187,7 @@ export function DiagramStudio({
     setPlan(null);
     setStage("planning");
 
-    const planBrief = { subject: cleanSubject };
+    const planBrief = { subject: cleanSubject, locale };
     try {
       const planResponse = await fetch("/api/plan", {
         method: "POST",
@@ -194,7 +195,7 @@ export function DiagramStudio({
         body: JSON.stringify(planBrief),
       });
       if (!planResponse.ok) {
-        throw await readApiError(planResponse, "Component planning failed.");
+        throw await readApiError(planResponse, t("Component planning failed."));
       }
       const nextPlan = (await planResponse.json()) as DiagramPlan;
       setPlan(nextPlan);
@@ -202,6 +203,7 @@ export function DiagramStudio({
 
       const generationBrief = {
         subject: cleanSubject,
+        locale,
         diagramType: nextPlan.diagramType,
         audience: nextPlan.audience,
         imageModel,
@@ -217,7 +219,7 @@ export function DiagramStudio({
         }),
       });
       if (!generationResponse.ok) {
-        throw await readApiError(generationResponse, "Visual generation failed.");
+        throw await readApiError(generationResponse, t("Visual generation failed."));
       }
       const payload = (await generationResponse.json()) as DiagramResult;
       setResult(payload);
@@ -225,7 +227,7 @@ export function DiagramStudio({
       setShowAnnotations(true);
       setStage("complete");
       await updateSession();
-      setNotice("Your annotated figure is ready");
+      setNotice(t("Your annotated figure is ready"));
       window.setTimeout(() => {
         document.getElementById("figure-workspace")?.scrollIntoView({
           behavior: "smooth",
@@ -237,19 +239,19 @@ export function DiagramStudio({
       setError(
         generationError instanceof Error
           ? generationError.message
-          : "An unexpected error interrupted the pipeline.",
+          : t("An unexpected error interrupted the pipeline."),
       );
     }
   }
 
   function restoreDemo() {
-    setResult(demoResult);
+    setResult(localizedDemoResult(locale));
     setPlan(null);
     setSelectedId("impeller");
     setError(null);
     setStage("idle");
     setShowAnnotations(true);
-    setNotice("Sample figure restored");
+    setNotice(t("Sample figure restored"));
   }
 
   function downloadImage() {
@@ -264,7 +266,7 @@ export function DiagramStudio({
     link.href = result.image.src;
     link.download = `${result.id}.${extension}`;
     link.click();
-    setNotice("Figure image downloaded");
+    setNotice(t("Figure image downloaded"));
   }
 
   function exportAnnotations() {
@@ -289,15 +291,15 @@ export function DiagramStudio({
     link.download = `${result.id}-annotations.json`;
     link.click();
     URL.revokeObjectURL(url);
-    setNotice("Annotation JSON downloaded");
+    setNotice(t("Annotation JSON downloaded"));
   }
 
   async function copyAnnotations() {
     try {
       await navigator.clipboard.writeText(JSON.stringify(result.annotation, null, 2));
-      setNotice("Annotation JSON copied");
+      setNotice(t("Annotation JSON copied"));
     } catch {
-      setError("Clipboard access is unavailable in this browser.");
+      setError(t("Clipboard access is unavailable in this browser."));
     }
   }
 
@@ -311,10 +313,10 @@ export function DiagramStudio({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ annotation: result.annotation }),
       });
-      if (!response.ok) throw await readApiError(response, "Could not save your edits.");
-      setNotice("Annotation edits saved");
+      if (!response.ok) throw await readApiError(response, t("Could not save your edits."));
+      setNotice(t("Annotation edits saved"));
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Could not save your edits.");
+      setError(saveError instanceof Error ? saveError.message : t("Could not save your edits."));
     } finally {
       setSaving(false);
     }
@@ -330,7 +332,7 @@ export function DiagramStudio({
           id={`part-editor-${part.id}`}
         >
           <p className="m-0 font-display text-micro font-bold uppercase tracking-[0.13em] text-pine-dark">
-            COMPONENT {String(part.index + 1).padStart(2, "0")}
+            {t("COMPONENT")} {String(part.index + 1).padStart(2, "0")}
           </p>
           <h3 className="mt-[3px] mb-3 font-display text-[25px] font-[550] tracking-[-0.015em]">{part.name}</h3>
           <p className="m-0 text-ui leading-[1.6] text-ink-2">{part.description}</p>
@@ -352,7 +354,7 @@ export function DiagramStudio({
         <div className="mb-4 flex items-start justify-between gap-[10px]">
           <div>
             <p className="m-0 font-display text-micro font-bold uppercase tracking-[0.13em] text-pine-dark">
-              COMPONENT {String(part.index + 1).padStart(2, "0")}
+              {t("COMPONENT")} {String(part.index + 1).padStart(2, "0")}
             </p>
             <h3 className="mt-[3px] mb-0 font-display text-[25px] font-[550] tracking-[-0.015em]">
               {part.name}
@@ -361,18 +363,18 @@ export function DiagramStudio({
           <span
             className={`whitespace-nowrap rounded-full px-[7px] py-1 text-micro font-bold ${statusPill}`}
           >
-            {reviewLabel(part)}
+            {reviewLabel(part, t)}
           </span>
         </div>
 
         {!part.visible && (
           <div className="mb-[13px] rounded-[3px] border-l-[3px] border-coral bg-[#fff0eb] px-3 py-[10px] text-ui leading-[1.55] text-[#933c29]">
-            This component could not be located reliably. Review it manually or regenerate.
+            {t("This component could not be located reliably. Review it manually or regenerate.")}
           </div>
         )}
 
         <label className="mb-4 grid gap-[7px]">
-          <span className="text-meta font-bold text-ink-2">Description</span>
+          <span className="text-meta font-bold text-ink-2">{t("Description")}</span>
           <textarea
             className="min-h-[78px] w-full resize-y rounded-[5px] border border-line bg-[#fbf7ec] p-[10px] text-ui leading-[1.55] text-ink-2 outline-none focus:border-pine focus:shadow-[0_0_0_3px_rgb(28_107_82_/_8%)]"
             value={part.description}
@@ -389,7 +391,7 @@ export function DiagramStudio({
 
         <div className="mb-[17px] rounded-md bg-[#f4efe2] p-3">
           <div className="flex justify-between gap-3 text-meta text-muted">
-            <span>Visual confidence</span>
+            <span>{t("Visual confidence")}</span>
             <strong className="font-display text-meta font-bold text-pine-dark">{percent(part.confidence)}</strong>
           </div>
           <div className="my-2 h-1 overflow-hidden rounded-full bg-[#d7cfba]">
@@ -399,7 +401,7 @@ export function DiagramStudio({
         </div>
 
         <div className="mb-4 grid gap-[7px]">
-          <span className="text-meta font-bold text-ink-2">Normalized anchor</span>
+          <span className="text-meta font-bold text-ink-2">{t("Normalized anchor")}</span>
           <div className="grid grid-cols-2 gap-[7px]">
             <label className="grid min-w-0 grid-cols-[27px_1fr] items-center rounded-[5px] border border-line bg-[#f4efe2] text-center font-display text-micro font-bold text-muted">
               X
@@ -449,7 +451,7 @@ export function DiagramStudio({
           }
         >
           <span className="grid h-[17px] w-[17px] place-items-center rounded-full bg-marigold text-micro text-ink" aria-hidden="true">✓</span>
-          {part.reviewStatus === "approved" ? "Component reviewed" : "Approve annotation"}
+          {part.reviewStatus === "approved" ? t("Component reviewed") : t("Approve annotation")}
         </button>
       </div>
     );
@@ -472,7 +474,7 @@ export function DiagramStudio({
                     : "bg-amber shadow-[0_0_0_4px_rgb(235_168_57_/_13%)]"
                 }`}
               />
-              {status === null ? "Checking Azure" : "Pipeline ready"}
+              {status === null ? t("Checking Azure") : t("Pipeline ready")}
             </div>
           ) : null
         }
@@ -484,24 +486,23 @@ export function DiagramStudio({
           id="top"
         >
           <div className="mx-auto max-w-[660px] text-center">
-            <p className="eyebrow before:mr-2 before:inline-block before:h-[6px] before:w-[6px] before:rounded-full before:bg-pine before:shadow-[0_0_0_4px_rgb(28_107_82_/_10%)]">ONE PROMPT. A COMPLETE VISUAL SYSTEM.</p>
+            <p className="eyebrow before:mr-2 before:inline-block before:h-[6px] before:w-[6px] before:rounded-full before:bg-pine before:shadow-[0_0_0_4px_rgb(28_107_82_/_10%)]">{t("ONE PROMPT. A COMPLETE VISUAL SYSTEM.")}</p>
             <h1 className="mx-auto my-[14px] max-w-[640px] font-display text-[clamp(34px,3.8vw,48px)] font-medium leading-[1.02] tracking-[-0.015em]">
-              Turn any topic into an{" "}
-              <em className="highlight-sweep">annotated visual.</em>
+              {t("Turn any topic into an")}{" "}
+              <em className="highlight-sweep">{t("annotated visual.")}</em>
             </h1>
             <p className="m-0 mx-auto max-w-[560px] text-body leading-[1.6] text-muted">
-              Figure plans the essential components, generates a clean image, and
-              grounds every callout to visible pixels—automatically.
+              {t("Figure plans the essential components, generates a clean image, and grounds every callout to visible pixels—automatically.")}
             </p>
           </div>
 
           <div className="relative z-[1] mt-9 w-full rounded-[18px] border border-line-dark bg-paper/[0.92] px-[18px] pb-[14px] pt-[18px] shadow-[0_28px_80px_rgb(60_52_30_/_11%),inset_0_-7px_var(--color-marigold)] [animation:rise-in_650ms_100ms_cubic-bezier(.2,.8,.2,1)_both]">
             <div className="absolute -top-[30px] right-[2px] hidden items-center gap-[6px] text-micro font-bold uppercase tracking-[0.08em] text-muted lg:inline-flex">
-              <i className="h-[6px] w-[6px] rounded-full bg-green shadow-[0_0_0_4px_rgb(44_154_115_/_10%)]" /> AI visual pipeline
+              <i className="h-[6px] w-[6px] rounded-full bg-green shadow-[0_0_0_4px_rgb(44_154_115_/_10%)]" /> {t("AI visual pipeline")}
             </div>
             <div className="flex items-center justify-between gap-4 px-[5px] pb-[11px]">
-              <label htmlFor="subject" className="text-body font-[750]">What do you want to explain?</label>
-              <span className="font-display text-micro font-bold tracking-[0.13em] text-muted-2">01 / TOPIC</span>
+              <label htmlFor="subject" className="text-body font-[750]">{t("What do you want to explain?")}</label>
+              <span className="font-display text-micro font-bold tracking-[0.13em] text-muted-2">{t("01 / TOPIC")}</span>
             </div>
             <div className="grid min-h-[86px] grid-cols-[auto_1fr] items-center gap-[13px] rounded-xl border border-[#d3cab1] bg-[#fbf7ec] py-[10px] pl-[18px] pr-[10px] transition-[border-color,box-shadow] duration-150 focus-within:border-pine focus-within:shadow-[0_0_0_4px_rgb(28_107_82_/_8%)] sm:grid-cols-[auto_1fr_auto]">
               <span className="text-[22px] text-pine" aria-hidden="true">✦</span>
@@ -517,7 +518,7 @@ export function DiagramStudio({
                 }}
                 rows={2}
                 maxLength={240}
-                placeholder="e.g. Inside a mechanical watch"
+                placeholder={t("e.g. Inside a mechanical watch")}
               />
               {signedOut ? (
                 <Link
@@ -525,7 +526,7 @@ export function DiagramStudio({
                   className="col-span-2 flex min-h-[48px] min-w-[174px] items-center justify-center gap-[9px] rounded-[9px] bg-ink px-5 text-body font-[750] text-white no-underline shadow-[0_10px_24px_rgb(35_33_27_/_18%)] transition-[transform,background] duration-150 hover:-translate-y-[2px] hover:bg-pine sm:col-span-1 sm:min-h-[57px]"
                 >
                   <span className="grid h-[23px] w-[23px] place-items-center rounded-full bg-marigold text-[14px] text-ink" aria-hidden="true">↗</span>
-                  Sign in to generate
+                  {t("Sign in to generate")}
                 </Link>
               ) : (
                 <button
@@ -540,18 +541,18 @@ export function DiagramStudio({
                     <span className="grid h-[23px] w-[23px] place-items-center rounded-full bg-marigold text-[14px] text-ink" aria-hidden="true">↗</span>
                   )}
                   {stage === "planning"
-                    ? "Planning"
+                    ? t("Planning")
                     : stage === "rendering"
-                      ? "Creating"
-                      : "Generate figure"}
+                      ? t("Creating")
+                      : t("Generate figure")}
                 </button>
               )}
             </div>
 
             <div className="flex items-center justify-between gap-[14px] px-[5px] pt-[11px]">
-              <div className="flex flex-wrap items-center gap-[6px]" aria-label="Example topics">
-                <span className="mr-[3px] hidden text-micro font-bold uppercase text-muted sm:inline">Try</span>
-                {promptIdeas.map((idea) => (
+              <div className="flex flex-wrap items-center gap-[6px]" aria-label={t("Example topics")}>
+                <span className="mr-[3px] hidden text-micro font-bold uppercase text-muted sm:inline">{t("Try")}</span>
+                {promptIdeas[locale].map((idea) => (
                   <button
                     key={idea}
                     type="button"
@@ -568,15 +569,15 @@ export function DiagramStudio({
             {!signedOut && (
               <div className="mt-3 flex flex-col items-stretch gap-[7px] border-t border-[#e5decb] px-[5px] pb-[7px] pt-[11px] text-meta leading-[1.4] text-muted sm:flex-row sm:items-center">
                 <span className="text-ui text-pine" aria-hidden="true">✦</span>
-                <p className="m-0 sm:mr-auto">Visual format and audience are selected automatically</p>
+                <p className="m-0 sm:mr-auto">{t("Visual format and audience are selected automatically")}</p>
                 <CustomSelect
                   compact
-                  label="Image model"
+                  label={t("Image model")}
                   value={imageModel}
                   onChange={(value) => setImageModel(value as ImageModel)}
                   options={[
-                    { value: "gpt-image-2", label: "GPT Image 2", hint: status?.imageModels["gpt-image-2"] ? "Ready" : "Not configured" },
-                    { value: "mai-image-2.5", label: "MAI Image 2.5", hint: status?.imageModels["mai-image-2.5"] ? "Ready" : "Not configured" },
+                    { value: "gpt-image-2", label: "GPT Image 2", hint: status?.imageModels["gpt-image-2"] ? t("Ready") : t("Not configured") },
+                    { value: "mai-image-2.5", label: "MAI Image 2.5", hint: status?.imageModels["mai-image-2.5"] ? t("Ready") : t("Not configured") },
                   ]}
                 />
               </div>
@@ -602,7 +603,7 @@ export function DiagramStudio({
             )}
           </div>
 
-          <div className="mt-[14px] grid w-full grid-cols-1 rounded-[10px] border-y border-line bg-paper/35 [animation:rise-in_650ms_180ms_cubic-bezier(.2,.8,.2,1)_both] sm:grid-cols-3" aria-label="Automatic generation pipeline">
+          <div className="mt-[14px] grid w-full grid-cols-1 rounded-[10px] border-y border-line bg-paper/35 [animation:rise-in_650ms_180ms_cubic-bezier(.2,.8,.2,1)_both] sm:grid-cols-3" aria-label={t("Automatic generation pipeline")}>
             {[
               { key: "plan" as const, number: "01", title: "Plan", copy: "Build the component inventory" },
               { key: "render" as const, number: "02", title: "Render", copy: "Generate the label-free image" },
@@ -628,8 +629,8 @@ export function DiagramStudio({
                     {itemState === "complete" ? "✓" : item.number}
                   </span>
                   <div className="grid min-w-0 gap-[2px]">
-                    <strong className="font-display text-ui">{item.title}</strong>
-                    <small className="text-meta leading-[1.35] text-muted">{item.copy}</small>
+                    <strong className="font-display text-ui">{t(item.title)}</strong>
+                    <small className="text-meta leading-[1.35] text-muted">{t(item.copy)}</small>
                   </div>
                   {index < 2 && (
                     <i className="absolute right-0 grid h-4 w-4 place-items-center rounded-full bg-[#f6f1e4] text-micro not-italic text-muted-2 max-sm:-bottom-2 max-sm:left-[27px] max-sm:right-auto max-sm:rotate-90" aria-hidden="true">→</i>
@@ -646,17 +647,17 @@ export function DiagramStudio({
         >
           <div className="mx-auto mb-4 flex w-[min(1440px,100%)] flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
             <div>
-              <p className="eyebrow">02 / FIGURE</p>
+              <p className="eyebrow">{t("02 / FIGURE")}</p>
               <h2 className="mt-[5px] mb-0 font-display text-[clamp(26px,2.7vw,38px)] font-[530] tracking-[-0.015em]">{plan?.title || result.annotation.title}</h2>
             </div>
             {signedOut ? (
               <div className="flex items-center gap-3 rounded-full border border-line-dark bg-paper px-4 py-2">
                 <span className="inline-flex items-center gap-2 text-meta font-bold text-muted">
                   <i className="h-[7px] w-[7px] rounded-full bg-amber shadow-[0_0_0_4px_rgb(217_150_46_/_15%)]" />
-                  Read-only preview
+                  {t("Read-only preview")}
                 </span>
                 <Link className="text-meta font-bold text-pine-dark no-underline hover:underline" href="/signin?callbackUrl=/studio">
-                  Sign in to edit →
+                  {t("Sign in to edit")} →
                 </Link>
               </div>
             ) : (
@@ -669,8 +670,8 @@ export function DiagramStudio({
                   <span className="z-[1] col-start-1 row-start-1 font-display text-micro font-bold text-pine-dark after:content-['%']">{Math.round(reviewProgress * 100)}</span>
                 </div>
                 <div className="grid gap-[2px]">
-                  <strong className="whitespace-nowrap text-ui">Review progress</strong>
-                  <small className="whitespace-nowrap text-micro text-muted">{approvedCount} of {result.annotation.parts.length} approved</small>
+                  <strong className="whitespace-nowrap text-ui">{t("Review progress")}</strong>
+                  <small className="whitespace-nowrap text-micro text-muted">{approvedCount} / {result.annotation.parts.length} {t("approved")}</small>
                 </div>
               </div>
               {result.provenance.source !== "offline-demo" && (
@@ -678,7 +679,7 @@ export function DiagramStudio({
                   className="inline-flex min-h-[38px] items-center gap-[7px] rounded-md border border-pine bg-pine px-[13px] text-meta font-[750] text-white no-underline hover:border-pine-dark hover:bg-pine-dark"
                   href={`/figures/${result.id}`}
                 >
-                  Open figure page <span aria-hidden="true">→</span>
+                  {t("Open figure page")} <span aria-hidden="true">→</span>
                 </Link>
               )}
               {result.provenance.source !== "offline-demo" && (
@@ -688,7 +689,7 @@ export function DiagramStudio({
                   onClick={() => void saveEdits()}
                   disabled={saving}
                 >
-                  {saving ? "Saving…" : "Save edits"}
+                  {saving ? t("Saving…") : t("Save edits")}
                 </button>
               )}
               <button
@@ -696,21 +697,21 @@ export function DiagramStudio({
                 className="min-h-[38px] max-sm:flex-1 rounded-md border border-line-dark bg-paper/[0.72] px-3 text-meta font-bold text-ink-2 hover:border-pine hover:text-pine"
                 onClick={() => void copyAnnotations()}
               >
-                Copy JSON
+                {t("Copy JSON")}
               </button>
               <button
                 type="button"
                 className="min-h-[38px] max-sm:flex-1 rounded-md border border-line-dark bg-paper/[0.72] px-3 text-meta font-bold text-ink-2 hover:border-pine hover:text-pine"
                 onClick={exportAnnotations}
               >
-                Export JSON
+                {t("Export JSON")}
               </button>
               <button
                 type="button"
                 className="min-h-[38px] max-sm:flex-1 rounded-md border border-ink bg-ink px-3 text-meta font-bold text-white"
                 onClick={downloadImage}
               >
-                Image <span className="ml-[6px] text-marigold" aria-hidden="true">↓</span>
+                {t("Image")} <span className="ml-[6px] text-marigold" aria-hidden="true">↓</span>
               </button>
             </div>
             )}
@@ -729,16 +730,16 @@ export function DiagramStudio({
             <section
               ref={canvasPanelRef}
               className={`min-w-0 rounded-[10px] border border-[#d0c7ad] bg-paper/[0.94] p-[14px] shadow-float ${isFocusMode ? "[animation:focus-in_220ms_ease_both]" : ""}`}
-              aria-label="Annotated visual canvas"
+              aria-label={t("Annotated visual canvas")}
             >
               <div className="flex min-h-[43px] flex-col items-start justify-between gap-4 px-[3px] pb-3 sm:flex-row sm:items-center">
                 <div className="flex flex-wrap items-center gap-2 font-display text-micro text-muted">
-                  <span className="rounded-full bg-pine-pale px-[7px] py-1 font-sans font-[750] text-pine-dark">{sourceLabel(result)}</span>
+                  <span className="rounded-full bg-pine-pale px-[7px] py-1 font-sans font-[750] text-pine-dark">{sourceLabel(result, t)}</span>
                   <span>{result.provenance.imageModel}</span>
                   <i className="h-[3px] w-[3px] rounded-full bg-muted-2" />
-                  <span>{result.annotation.parts.length} components</span>
+                  <span>{result.annotation.parts.length} {t("components")}</span>
                   <i className="h-[3px] w-[3px] rounded-full bg-muted-2" />
-                  <span>{percent(averageConfidence)} avg. confidence</span>
+                  <span>{percent(averageConfidence)} {t("avg. confidence")}</span>
                 </div>
                 <div className="flex items-center gap-[6px] max-sm:w-full">
                   <button
@@ -750,7 +751,7 @@ export function DiagramStudio({
                     <span className="toggle-visual relative h-[14px] w-[24px] rounded-full bg-[#d3cab1] transition-[background] duration-150">
                       <i className="absolute left-[3px] top-[3px] h-2 w-2 rounded-full bg-paper shadow-[0_1px_3px_rgb(0_0_0_/_20%)] transition-transform duration-150" />
                     </span>
-                    Annotations
+                    {t("Annotations")}
                   </button>
                   <button
                     className="inline-flex min-h-[32px] max-sm:flex-1 max-sm:justify-center items-center gap-[6px] rounded-[5px] border border-line bg-[#fbf7ec] px-[10px] text-micro font-bold text-muted hover:border-pine hover:text-pine-dark"
@@ -759,7 +760,7 @@ export function DiagramStudio({
                     onClick={() => setIsFocusMode((current) => !current)}
                   >
                     <span aria-hidden="true">{isFocusMode ? "↙" : "↗"}</span>
-                    {isFocusMode ? "Exit focus" : "Focus"}
+                    {isFocusMode ? t("Exit focus") : t("Focus mode")}
                   </button>
                   {!signedOut && (
                     <button
@@ -767,7 +768,7 @@ export function DiagramStudio({
                       type="button"
                       onClick={restoreDemo}
                     >
-                      Reset
+                      {t("Reset")}
                     </button>
                   )}
                 </div>
@@ -790,11 +791,11 @@ export function DiagramStudio({
                       <i className="absolute right-[5px] bottom-2 h-[7px] w-[7px] rounded-full bg-marigold" />
                       <span className="text-[22px] text-marigold">✦</span>
                     </div>
-                    <strong className="font-display text-[21px]">{stage === "planning" ? "Mapping the topic" : "Building your figure"}</strong>
+                    <strong className="font-display text-[21px]">{stage === "planning" ? t("Mapping the topic") : t("Building your figure")}</strong>
                     <p className="mt-[7px] mb-0 text-ui text-white/[0.62]">
                       {stage === "planning"
-                        ? "Selecting the clearest visible components…"
-                        : "Rendering the image, then grounding every component…"}
+                        ? t("Selecting the clearest visible components…")
+                        : t("Rendering the image, then grounding every component…")}
                     </p>
                   </div>
                 )}
@@ -803,29 +804,29 @@ export function DiagramStudio({
               <div className="flex min-h-[43px] flex-col items-start justify-between gap-2 px-[3px] pt-[11px] sm:flex-row sm:items-center sm:gap-[18px]">
                 {!signedOut && (
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="inline-flex items-center gap-[5px] text-micro text-muted"><i className="inline-block h-[7px] w-[7px] rounded-full bg-pine" />AI draft</span>
-                    <span className="inline-flex items-center gap-[5px] text-micro text-muted"><i className="inline-block h-[7px] w-[7px] rounded-full bg-amber" />Low confidence</span>
-                    <span className="inline-flex items-center gap-[5px] text-micro text-muted"><i className="inline-block h-[7px] w-[7px] rounded-full bg-green" />Reviewed</span>
+                    <span className="inline-flex items-center gap-[5px] text-micro text-muted"><i className="inline-block h-[7px] w-[7px] rounded-full bg-pine" />{t("AI draft")}</span>
+                    <span className="inline-flex items-center gap-[5px] text-micro text-muted"><i className="inline-block h-[7px] w-[7px] rounded-full bg-amber" />{t("Low confidence")}</span>
+                    <span className="inline-flex items-center gap-[5px] text-micro text-muted"><i className="inline-block h-[7px] w-[7px] rounded-full bg-green" />{t("Reviewed")}</span>
                   </div>
                 )}
                 <p className="m-0 text-micro text-muted max-sm:text-left sm:text-right">
                   {signedOut
-                    ? "Click a numbered marker to read about that component."
+                    ? t("Click a numbered marker to read about that component.")
                     : showAnnotations
-                      ? "Drag numbered anchors to correct their position."
-                      : "Clean image preview · Turn annotations on to edit."}
+                      ? t("Drag numbered anchors to correct their position.")
+                      : t("Clean image preview · Turn annotations on to edit.")}
                 </p>
               </div>
             </section>
 
             <aside
               className={`min-w-0 self-stretch overflow-auto rounded-[10px] border border-[#d0c7ad] bg-paper/[0.94] p-5 shadow-float [scrollbar-color:#c8c0aa_transparent] [scrollbar-width:thin] lg:sticky lg:top-[14px] lg:h-[var(--canvas-panel-height,auto)] ${isFocusMode ? "hidden" : ""}`}
-              aria-label="Component inventory and review"
+              aria-label={t("Component inventory and review")}
             >
               <div className="flex items-start justify-between gap-[18px] border-b border-line pb-[17px]">
                 <div>
-                  <p className="eyebrow">03 / COMPONENT MAP</p>
-                  <h2 className="mt-[5px] mb-0 font-display text-[24px] font-[530] tracking-[-0.015em]">Parts &amp; callouts</h2>
+                  <p className="eyebrow">{t("03 / COMPONENT MAP")}</p>
+                  <h2 className="mt-[5px] mb-0 font-display text-[24px] font-[530] tracking-[-0.015em]">{t("Parts & callouts")}</h2>
                 </div>
                 <span className="grid h-[30px] w-[30px] place-items-center rounded-full bg-ink font-display text-micro font-bold text-white">{plan?.parts.length || result.annotation.parts.length}</span>
               </div>
@@ -833,13 +834,13 @@ export function DiagramStudio({
               {!isGenerating && !signedOut && (
                 <div className="mx-0 my-[7px] mt-[14px] rounded-[7px] border border-[#e5e2da] bg-[linear-gradient(135deg,#f8f7f3,#eaf2e9)] px-3 py-[11px]">
                   <div className="flex items-center justify-between gap-3 text-meta font-bold">
-                    <span>Human review</span>
+                    <span>{t("Human review")}</span>
                     <strong className="font-display text-pine-dark">{Math.round(reviewProgress * 100)}%</strong>
                   </div>
                   <div className="my-[7px] h-[3px] overflow-hidden rounded-full bg-[#d7cfba]">
                     <i className="block h-full rounded-[inherit] bg-[linear-gradient(90deg,var(--color-pine),#3f9a74)] transition-[width] duration-[260ms]" style={{ width: percent(reviewProgress) }} />
                   </div>
-                  <small className="text-micro leading-[1.4] text-muted">{approvedCount === result.annotation.parts.length ? "All annotations are ready." : "Select each component to verify its anchor and copy."}</small>
+                  <small className="text-micro leading-[1.4] text-muted">{approvedCount === result.annotation.parts.length ? t("All annotations are ready.") : t("Select each component to verify its anchor and copy.")}</small>
                 </div>
               )}
 
@@ -847,7 +848,7 @@ export function DiagramStudio({
                 <div className="pb-[5px] pt-[17px]" aria-live="polite">
                   <p className="mb-[15px] mt-0 flex items-center gap-2 text-ui font-bold text-pine-dark">
                     <span className="h-[13px] w-[13px] rounded-full border-2 border-[rgb(28_107_82_/_20%)] border-t-pine [animation:spin_0.75s_linear_infinite]" />
-                    Building the component inventory
+                    {t("Building the component inventory")}
                   </p>
                   {[0, 1, 2, 3, 4].map((item, index) => (
                     <i
@@ -860,7 +861,7 @@ export function DiagramStudio({
               ) : stage === "rendering" && plan ? (
                 <div className="pt-[13px]" aria-live="polite">
                   <p className="mb-2 mt-0 flex items-center gap-[7px] text-meta font-bold text-green">
-                    <span className="grid h-[17px] w-[17px] place-items-center rounded-full bg-green text-white">✓</span> Inventory generated
+                    <span className="grid h-[17px] w-[17px] place-items-center rounded-full bg-green text-white">✓</span> {t("Inventory generated")}
                   </p>
                   {plan.parts.map((part, index) => (
                     <div className="relative grid min-h-[63px] grid-cols-[29px_1fr_auto] items-center gap-2 border-b border-[#ebe4d2]" key={part.id}>
@@ -875,7 +876,7 @@ export function DiagramStudio({
                 </div>
               ) : (
                 <>
-                  <nav className="my-[18px] mt-[5px] grid" aria-label="Components">
+                  <nav className="my-[18px] mt-[5px] grid" aria-label={t("Components")}>
                     {result.annotation.parts.map((part) => {
                       const expanded = selectedId === part.id;
                       const dotColor =
@@ -913,7 +914,7 @@ export function DiagramStudio({
 
               {result.annotation.warnings.length > 0 && !isGenerating && (
                 <details className="mt-[15px] border-t border-line text-meta text-muted">
-                  <summary className="cursor-pointer pb-[5px] pt-3 font-bold text-[#a44e36]">Quality notes · {result.annotation.warnings.length}</summary>
+                  <summary className="cursor-pointer pb-[5px] pt-3 font-bold text-[#a44e36]">{t("Quality notes")} · {result.annotation.warnings.length}</summary>
                   <ul className="mt-[5px] pl-[17px] leading-[1.55] [&>li+li]:mt-[5px]">
                     {result.annotation.warnings.map((warning) => <li key={warning}>{warning}</li>)}
                   </ul>
@@ -927,10 +928,10 @@ export function DiagramStudio({
       <footer className="mx-auto grid min-h-[105px] w-[min(1440px,calc(100%-64px))] grid-cols-1 items-center gap-[10px] text-micro text-muted sm:grid-cols-[auto_1fr] sm:gap-9 lg:grid-cols-[auto_1fr_auto]">
         <div className="flex items-center gap-[10px]">
           <strong className="font-display tracking-[0.12em] text-ink">FIGURE</strong>
-          <span>Pixels made explainable.</span>
+          <span>{t("Pixels made explainable.")}</span>
         </div>
-        <p className="m-0 mx-auto max-w-[600px] leading-[1.55] max-sm:text-left sm:text-center">AI-generated visuals and spatial locations are drafts. Expert review is required for medical, engineering, and safety-critical use.</p>
-        <span className="text-right max-lg:hidden">Stored securely · Semantic data stays separate</span>
+        <p className="m-0 mx-auto max-w-[600px] leading-[1.55] max-sm:text-left sm:text-center">{t("AI-generated visuals and spatial locations are drafts. Expert review is required for medical, engineering, and safety-critical use.")}</p>
+        <span className="text-right max-lg:hidden">{t("Stored securely · Semantic data stays separate")}</span>
       </footer>
 
       {notice && (
