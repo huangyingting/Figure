@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { authConfig } from "@/auth.config";
 import { prisma } from "@/lib/prisma";
+import { clientIp, peekRateLimit, rateLimit } from "@/lib/rate-limit";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email().transform((value) => value.toLowerCase()),
@@ -21,11 +22,19 @@ const providers = [
       email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
     },
-    async authorize(raw) {
+    async authorize(raw, request) {
       const parsed = credentialsSchema.safeParse(raw);
       if (!parsed.success) return null;
+      // Throttle brute force by source IP before touching the database.
+      const ip = clientIp(request);
+      if (!rateLimit(`login:ip:${ip}`, { limit: 10, windowMs: 15 * 60 * 1000 }).allowed) return null;
+      // Block once too many FAILED attempts target one email; successful logins
+      // do not consume the budget (checked without incrementing on success).
+      const emailKey = `login:email:${parsed.data.email}`;
+      if (peekRateLimit(emailKey, 5) === false) return null;
       const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
       if (!user?.passwordHash || !(await compare(parsed.data.password, user.passwordHash))) {
+        rateLimit(emailKey, { limit: 5, windowMs: 15 * 60 * 1000 });
         return null;
       }
       return { id: user.id, email: user.email, name: user.name, image: user.image };
