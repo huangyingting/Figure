@@ -4,29 +4,70 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { ProductShell } from "@/components/product-shell";
+import { QuizFigureBrowser } from "@/components/quiz-figure-browser";
 import { QuizRunner } from "@/components/quiz-runner";
 import { Button, EmptyState, Page, PageHeader } from "@/components/ui";
 import { parseStoredAnnotation } from "@/lib/annotations";
 import { demoResult } from "@/lib/demo-data";
 import { prisma } from "@/lib/prisma";
+import {
+  browseQuizFigures,
+  getQuizFigure,
+  quizFigureHref,
+} from "@/lib/quiz-figure-browser";
 import { computePartAccuracy, weakestParts } from "@/lib/quiz-insights";
 
 export const metadata: Metadata = { title: "Quiz lab" };
 export const dynamic = "force-dynamic";
 
-export default async function QuizPage({ searchParams }: { searchParams: Promise<{ figure?: string }> }) {
+export default async function QuizPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    figure?: string | string[];
+    q?: string | string[];
+    page?: string | string[];
+  }>;
+}) {
   const session = await auth();
-  const { figure: requested } = await searchParams;
+  const params = await searchParams;
+  const requested = Array.isArray(params.figure)
+    ? params.figure[0]
+    : params.figure;
+  const viewerId = session?.user?.id ?? null;
+  const browser = await browseQuizFigures(viewerId, params);
 
-  if (!session?.user?.id) {
+  if (!viewerId) {
     // Guests can quiz themselves on any public figure (or the sample), but
     // nothing persists until they sign in.
     const requestedFigure = requested
-      ? await prisma.figure.findFirst({ where: { id: requested, isPublic: true }, select: { id: true, title: true, annotationJson: true } })
+      ? await getQuizFigure(null, requested)
       : null;
     const quiz = requestedFigure
       ? { figureId: requestedFigure.id, title: requestedFigure.title, parts: parseStoredAnnotation(requestedFigure.annotationJson).parts, imageSrc: undefined }
       : { figureId: demoResult.id, title: demoResult.annotation.title, parts: demoResult.annotation.parts, imageSrc: demoResult.image.src };
+    const demoMatches = `${demoResult.annotation.title} Inside a centrifugal pump`
+      .toLowerCase()
+      .includes(browser.query.toLowerCase());
+    if (
+      browser.page === 1 &&
+      demoMatches &&
+      !browser.figures.some((figure) => figure.id === demoResult.id)
+    ) {
+      browser.figures = [
+        {
+          id: demoResult.id,
+          title: demoResult.annotation.title,
+          subject: "Inside a centrifugal pump",
+          createdAt: new Date(demoResult.provenance.generatedAt),
+          ownerId: null,
+          isPublic: true,
+          quizAttempts: 0,
+          imageSrc: demoResult.image.src,
+        },
+        ...browser.figures,
+      ].slice(0, 8);
+    }
     return <ProductShell><Page>
       <PageHeader
         eyebrow={<><BookOpenCheck size={14} /> ACTIVE RECALL</>}
@@ -34,19 +75,24 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
         lead="Try a visual recall quiz. Guest attempts aren’t saved."
         actions={<Button asChild variant="outline"><Link href="/signin?callbackUrl=/quiz">Sign in to track mastery</Link></Button>}
       />
-      <QuizRunner figureId={quiz.figureId} title={quiz.title} parts={quiz.parts} imageSrc={quiz.imageSrc} persist={false} />
+      <div className="grid items-start gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <QuizFigureBrowser browser={browser} selectedFigureId={quiz.figureId} viewerId={null} />
+        <div className="min-w-0">
+          <QuizRunner key={quiz.figureId} figureId={quiz.figureId} title={quiz.title} parts={quiz.parts} imageSrc={quiz.imageSrc} persist={false} />
+        </div>
+      </div>
     </Page></ProductShell>;
   }
 
-  const figures = await prisma.figure.findMany({ where: { OR: [{ ownerId: session.user.id }, { isPublic: true }] }, orderBy: { createdAt: "desc" }, take: 20, select: { id: true, title: true, annotationJson: true } });
-  const selected = figures.find((item) => item.id === requested) ?? figures[0];
+  let selected = await getQuizFigure(viewerId, requested);
+  if (!selected && requested) selected = await getQuizFigure(viewerId);
   const selectedParts = selected ? parseStoredAnnotation(selected.annotationJson).parts : [];
   // Per-part accuracy comes from the normalized QuizAnswer rows, so "which
   // components do I keep missing" is a single grouped query.
   const answerRows = selected
     ? await prisma.quizAnswer.groupBy({
         by: ["partId", "correct"],
-        where: { userId: session.user.id, figureId: selected.id },
+        where: { userId: viewerId, figureId: selected.id },
         _count: { _all: true },
       })
     : [];
@@ -56,10 +102,10 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
       selectedParts.map((part) => ({ id: part.id, name: part.name })),
     ),
   );
-  const attempts = await prisma.quizAttempt.findMany({ where: { userId: session.user.id }, orderBy: { completedAt: "desc" }, take: 5, include: { figure: { select: { title: true } } } });
+  const attempts = await prisma.quizAttempt.findMany({ where: { userId: viewerId }, orderBy: { completedAt: "desc" }, take: 5, include: { figure: { select: { title: true } } } });
   const masteryGroups = await prisma.quizAttempt.groupBy({
     by: ["figureId"],
-    where: { userId: session.user.id },
+    where: { userId: viewerId },
     _max: { score: true },
     _count: { _all: true },
     _sum: { score: true, total: true },
@@ -93,8 +139,12 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
         </div>
       )}
     />
-    {figures.length > 1 && <nav className="-mt-2 mb-[18px] flex gap-[7px] overflow-auto px-[1px] pb-[10px] pt-[3px]" aria-label="Choose a figure to be quizzed on">{figures.map((figure) => <Link key={figure.id} href={`/quiz?figure=${figure.id}`} data-active={figure.id === selected?.id} aria-current={figure.id === selected?.id ? "page" : undefined} className="whitespace-nowrap rounded-full border border-line bg-paper px-[13px] py-[9px] text-micro font-bold text-muted no-underline data-[active=true]:border-pine data-[active=true]:bg-pine data-[active=true]:text-white">{figure.title}</Link>)}</nav>}
-    {selected ? <QuizRunner figureId={selected.id} title={selected.title} parts={selectedParts} /> : <EmptyState large icon="?" title="Create a figure before taking a quiz." description="Every annotated component becomes a visual recall question." action={<Button asChild><Link href="/studio">Create your first figure</Link></Button>} />}
+    <div className="grid items-start gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
+      <QuizFigureBrowser browser={browser} selectedFigureId={selected?.id ?? null} viewerId={viewerId} />
+      <div className="min-w-0">
+        {selected ? <QuizRunner key={selected.id} figureId={selected.id} title={selected.title} parts={selectedParts} /> : <EmptyState large icon="?" title="Create a figure before taking a quiz." description="Every annotated component becomes a visual recall question." action={<Button asChild><Link href="/studio">Create your first figure</Link></Button>} />}
+      </div>
+    </div>
     {weakSpots.length > 0 && <section className="mt-[34px]">
       <header className="mb-4 flex items-baseline justify-between gap-4">
         <h2 className="m-0 font-display text-[22px] tracking-[-0.015em]">Components to revisit</h2>
@@ -117,7 +167,7 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
         <span className="text-micro text-muted">{mastery.length} {mastery.length === 1 ? "figure" : "figures"} practiced</span>
       </header>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">{mastery.map((item) => (
-        <Link key={item.figureId} href={`/quiz?figure=${item.figureId}`} className="grid gap-2 rounded-[13px] border border-line-dark bg-paper p-[16px_18px] no-underline transition-[border-color,box-shadow] hover:border-pine hover:shadow-[0_10px_30px_rgb(35_33_27_/_7%)]">
+        <Link key={item.figureId} href={quizFigureHref({ figureId: item.figureId, query: browser.query, page: browser.page })} className="grid gap-2 rounded-[13px] border border-line-dark bg-paper p-[16px_18px] no-underline transition-[border-color,box-shadow] hover:border-pine hover:shadow-[0_10px_30px_rgb(35_33_27_/_7%)]">
           <div className="flex items-center justify-between gap-[10px]">
             <strong className="overflow-hidden overflow-ellipsis whitespace-nowrap text-meta text-ink">{item.title}</strong>
             <b className="font-display text-[16px] text-pine-dark">{item.averagePct}%</b>

@@ -495,7 +495,7 @@ export function DiagramStudio({
             </p>
           </div>
 
-          <div className="relative mt-9 w-full rounded-[18px] border border-line-dark bg-paper/[0.92] px-[18px] pb-[14px] pt-[18px] shadow-[0_28px_80px_rgb(60_52_30_/_11%),inset_0_-7px_var(--color-marigold)] [animation:rise-in_650ms_100ms_cubic-bezier(.2,.8,.2,1)_both]">
+          <div className="relative z-[1] mt-9 w-full rounded-[18px] border border-line-dark bg-paper/[0.92] px-[18px] pb-[14px] pt-[18px] shadow-[0_28px_80px_rgb(60_52_30_/_11%),inset_0_-7px_var(--color-marigold)] [animation:rise-in_650ms_100ms_cubic-bezier(.2,.8,.2,1)_both]">
             <div className="absolute -top-[30px] right-[2px] hidden items-center gap-[6px] text-micro font-bold uppercase tracking-[0.08em] text-muted lg:inline-flex">
               <i className="h-[6px] w-[6px] rounded-full bg-green shadow-[0_0_0_4px_rgb(44_154_115_/_10%)]" /> AI visual pipeline
             </div>

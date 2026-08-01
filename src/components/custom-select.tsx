@@ -44,7 +44,7 @@ export function CustomSelect({
   }
 
   return (
-    <div className="relative min-w-[188px]" ref={root}>
+    <div className={cn("relative min-w-[188px]", open && "z-[80]")} ref={root}>
       <button
         type="button"
         className={cn(

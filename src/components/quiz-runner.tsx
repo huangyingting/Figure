@@ -51,15 +51,15 @@ export function QuizRunner({ figureId, title, parts, imageSrc, persist = true }:
           <p className="m-0 text-micro font-extrabold uppercase tracking-[0.13em] text-pine-dark">VISUAL RECALL</p>
           <h2 className="mt-[5px] mb-0 font-display text-[23px] font-[560] tracking-[-0.015em]">{title}</h2>
         </div>
-        <span className="font-display text-[15px] font-bold">{String(current + 1).padStart(2, "0")} <i className="mx-1 not-italic text-muted-2">/</i> {String(questions.length).padStart(2, "0")}</span>
+        <span className="shrink-0 self-start whitespace-nowrap font-display text-[15px] font-bold">{String(current + 1).padStart(2, "0")} <i className="mx-1 not-italic text-muted-2">/</i> {String(questions.length).padStart(2, "0")}</span>
       </header>
       <div className="h-[3px] bg-[#efe8d6]"><i className="block h-full bg-pine transition-[width] duration-300" style={{ width: `${current / questions.length * 100}%` }} /></div>
-      <div className="grid min-h-[510px] grid-cols-1 lg:grid-cols-[1.08fr_0.92fr]">
-        <div className="relative grid min-h-[310px] place-items-center bg-[radial-gradient(circle_at_50%_50%,white,transparent_45%),#ece6d5] p-[18px] lg:min-h-0 lg:p-[35px]">
+      <div className="grid min-h-[510px] grid-cols-1 xl:grid-cols-[1.08fr_0.92fr]">
+        <div className="relative grid min-h-[310px] place-items-center bg-[radial-gradient(circle_at_50%_50%,white,transparent_45%),#ece6d5] p-[18px] xl:min-h-0 xl:p-[35px]">
           <img src={imageSrc ?? `/api/figures/${figureId}/image`} alt="" className="max-h-[440px] w-full rounded-[11px] object-contain saturate-[.72]" />
           <span className="absolute bottom-5 left-[22px] rounded-md bg-ink px-[9px] py-[6px] text-micro font-extrabold uppercase text-white">Look closely</span>
         </div>
-        <div className="p-[25px_19px] lg:p-[39px]">
+        <div className="p-[25px_19px] xl:p-[39px]">
           <p className="m-0 text-micro font-extrabold uppercase tracking-[0.13em] text-pine-dark">WHICH COMPONENT IS THIS?</p>
           <h3 className="mt-[9px] mb-[22px] font-display text-[22px] font-[530] leading-[1.35] tracking-[-0.015em]">{question.part.description}</h3>
           <div className="grid gap-2">{question.options.map((option, index) => (
