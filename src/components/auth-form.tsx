@@ -21,7 +21,7 @@ export function AuthForm({ mode, social, callbackUrl = "/library" }: { mode: "si
         body: JSON.stringify({ name: formData.get("name"), email, password }),
       });
       if (!response.ok) {
-        const payload = await response.json() as { error?: string };
+        const payload = await response.json().catch(() => ({})) as { error?: string };
         setError(payload.error || "Registration failed."); setPending(false); return;
       }
     }
