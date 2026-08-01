@@ -1,25 +1,13 @@
 "use client";
 
-import { BookOpenCheck, Coins, Compass, FolderHeart, Heart, LogOut, Menu, Plus, Shapes, Sparkles, X } from "lucide-react";
+import { Coins, LogOut, Menu, Plus, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
 
+import { loggedInNav, loggedOutNav } from "@/components/nav-items";
 import { useModalDialog } from "@/components/use-modal-dialog";
-
-const loggedInNav = [
-  { href: "/discover", label: "Discover", icon: Compass },
-  { href: "/library", label: "My figures", icon: Shapes },
-  { href: "/collections", label: "Collections", icon: FolderHeart },
-  { href: "/favorites", label: "Favorites", icon: Heart },
-  { href: "/quiz", label: "Quiz lab", icon: BookOpenCheck },
-];
-
-const loggedOutNav = [
-  { href: "/discover", label: "Discover", icon: Compass },
-  { href: "/quiz", label: "Quiz lab", icon: BookOpenCheck },
-];
 
 interface MobileMenuAccount {
   name: string | null;

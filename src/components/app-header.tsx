@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 import { MobileMenu } from "@/components/mobile-menu";
+import { loggedInNav, loggedOutNav } from "@/components/nav-items";
 
 export interface HeaderUser {
   name?: string | null;
@@ -13,20 +14,9 @@ export interface HeaderUser {
   credits: number;
 }
 
-const loggedOutNav = [
-  { href: "/discover", label: "Discover" },
-  { href: "/quiz", label: "Quiz lab" },
-  { href: "/studio", label: "Studio" },
-];
-
-const loggedInNav = [
-  { href: "/discover", label: "Discover" },
-  { href: "/library", label: "My figures" },
-  { href: "/collections", label: "Collections" },
-  { href: "/favorites", label: "Favorites" },
-  { href: "/quiz", label: "Quiz lab" },
-  { href: "/studio", label: "Studio" },
-];
+const studioLink = { href: "/studio", label: "Studio" };
+const headerLoggedOutNav = [...loggedOutNav, studioLink];
+const headerLoggedInNav = [...loggedInNav, studioLink];
 
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -34,7 +24,7 @@ function isActive(pathname: string, href: string) {
 
 export function AppHeader({ user = null, extra }: { user?: HeaderUser | null; extra?: React.ReactNode }) {
   const pathname = usePathname();
-  const nav = user ? loggedInNav : loggedOutNav;
+  const nav = user ? headerLoggedInNav : headerLoggedOutNav;
 
   return (
     <header className="app-topbar">
