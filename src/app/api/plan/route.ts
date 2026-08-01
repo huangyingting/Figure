@@ -5,6 +5,7 @@ import { ZodError } from "zod";
 
 import { AzureConfigurationError, planDiagramParts } from "@/lib/azure-openai";
 import { PlanDiagramRequestSchema } from "@/lib/contracts";
+import { rateLimit } from "@/lib/rate-limit";
 import { auth } from "@/auth";
 
 export const runtime = "nodejs";
@@ -24,6 +25,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Sign in to plan a new figure.", code: "UNAUTHORIZED", requestId }, { status: 401 });
+    }
+    const limit = rateLimit(`plan:${session.user.id}`, { limit: 20, windowMs: 60 * 1000 });
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: "Too many planning requests. Please slow down and try again shortly.", code: "RATE_LIMITED", requestId },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds), "X-Request-Id": requestId } },
+      );
     }
     const contentLength = Number(request.headers.get("content-length") || 0);
     if (contentLength > 32 * 1024) {
