@@ -15,5 +15,9 @@ export function isMatch(pathname: string, routes: string[]) {
 }
 
 export function safeCallbackUrl(value: string | null | undefined, fallback = "/library") {
-  return value?.startsWith("/") && !value.startsWith("//") ? value : fallback;
+  if (!value || !value.startsWith("/")) return fallback;
+  // Reject protocol-relative and backslash-escaped forms; URL parsers treat
+  // "//host", "/\host" and "/\\host" as off-origin absolute URLs.
+  if (/^\/[/\\]/.test(value)) return fallback;
+  return value;
 }
