@@ -104,11 +104,11 @@ export function AnnotationCanvas({
             const pillWidth = Math.max(130, Math.min(180, part.name.length * 8 + 42));
             const rawLabelX = callout.labelX * viewWidth;
             const labelX = callout.side === "left"
-              ? Math.max(pillWidth + 28, rawLabelX)
-              : Math.min(viewWidth - pillWidth - 28, rawLabelX);
+              ? Math.max(pillWidth + 10, rawLabelX)
+              : Math.min(viewWidth - pillWidth - 10, rawLabelX);
             const labelY = callout.labelY * viewHeight;
-            const elbowX = callout.elbowX * viewWidth;
-            const pillX = callout.side === "left" ? labelX - pillWidth - 18 : labelX + 18;
+            const routeX = labelX + (anchorX - labelX) * 0.35;
+            const pillX = callout.side === "left" ? labelX - pillWidth : labelX;
 
             return (
               <g
@@ -127,8 +127,8 @@ export function AnnotationCanvas({
                 }}
               >
                 <polyline
-                  className="fill-none stroke-[var(--marker)] [stroke-width:1.5] [vector-effect:non-scaling-stroke] pointer-events-none group-focus:[stroke-width:2.5] group-data-[selected=true]:[stroke-width:2.5]"
-                  points={`${anchorX},${anchorY} ${elbowX},${labelY} ${labelX},${labelY}`}
+                  className="fill-none stroke-[var(--marker)] [stroke-width:1.5] [stroke-linecap:round] [stroke-linejoin:round] [vector-effect:non-scaling-stroke] pointer-events-none group-focus:[stroke-width:2.5] group-data-[selected=true]:[stroke-width:2.5]"
+                  points={`${anchorX},${anchorY} ${routeX},${anchorY} ${routeX},${labelY} ${labelX},${labelY}`}
                 />
                 <rect
                   className="fill-[rgb(255_255_255_/_90%)] stroke-[rgb(35_33_27_/_15%)] [stroke-width:1] [vector-effect:non-scaling-stroke] max-[580px]:hidden group-focus:stroke-[var(--marker)] group-focus:[stroke-width:2] group-data-[selected=true]:stroke-[var(--marker)] group-data-[selected=true]:[stroke-width:2]"
@@ -140,7 +140,7 @@ export function AnnotationCanvas({
                 />
                 <text
                   className="fill-ink font-sans text-[14px] font-bold pointer-events-none max-[580px]:hidden"
-                  x={callout.side === "left" ? labelX - 29 : labelX + 29}
+                  x={callout.side === "left" ? labelX - 16 : labelX + 16}
                   y={labelY + 5}
                   textAnchor={callout.side === "left" ? "end" : "start"}
                 >

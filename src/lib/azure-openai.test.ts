@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import sharp from "sharp";
 
 import {
   generateAzureImage,
@@ -17,6 +18,18 @@ const baseRequest: GenerateDiagramRequest = {
     { id: "rotor", name: "rotor", description: "rotating component" },
   ],
 };
+
+async function whitePngBase64(): Promise<string> {
+  const image = await sharp({
+    create: {
+      width: 16,
+      height: 16,
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
+    },
+  }).png().toBuffer();
+  return image.toString("base64");
+}
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -52,8 +65,9 @@ describe("Azure endpoint normalization", () => {
     vi.stubEnv("AZURE_MAI_IMAGE_API_KEY", "test-key");
     vi.stubEnv("AZURE_MAI_IMAGE_DEPLOYMENT", "mai-diagram");
     vi.stubEnv("AZURE_MAI_IMAGE_SIZE", "1024x1024");
+    const imageData = await whitePngBase64();
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: [{ b64_json: "AAAA" }] }), {
+      new Response(JSON.stringify({ data: [{ b64_json: imageData }] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),
@@ -65,7 +79,8 @@ describe("Azure endpoint normalization", () => {
       imageModel: "mai-image-2.5",
     });
 
-    expect(image.src).toBe("data:image/png;base64,AAAA");
+    expect(image.src).toMatch(/^data:image\/png;base64,/);
+    expect(image.mimeType).toBe("image/png");
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe(
       "https://example.services.ai.azure.com/mai/v1/images/generations",
@@ -86,8 +101,9 @@ describe("Azure endpoint normalization", () => {
     vi.stubEnv("AZURE_GPT_IMAGE_API_KEY", "test-key");
     vi.stubEnv("AZURE_GPT_IMAGE_DEPLOYMENT", "gpt-image-diagram");
     vi.stubEnv("AZURE_GPT_IMAGE_SIZE", "1024x1024");
+    const imageData = await whitePngBase64();
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: [{ b64_json: "BBBB" }] }), {
+      new Response(JSON.stringify({ data: [{ b64_json: imageData }] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),
@@ -96,7 +112,8 @@ describe("Azure endpoint normalization", () => {
 
     const image = await generateAzureImage(baseRequest);
 
-    expect(image.src).toBe("data:image/png;base64,BBBB");
+    expect(image.src).toMatch(/^data:image\/png;base64,/);
+    expect(image.mimeType).toBe("image/png");
     const [request] = fetchMock.mock.calls[0] as [Request];
     const url = request instanceof Request ? request.url : String(request);
     expect(url).toContain("/openai/v1/images/generations");

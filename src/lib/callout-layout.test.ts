@@ -78,11 +78,36 @@ describe("layoutCallouts", () => {
     }
   });
 
-  it("assigns fixed label and elbow rails per side", () => {
+  it("keeps clustered labels close to their anchors without overlap", () => {
+    const anchors = new Map([
+      ["3", 0.397],
+      ["4", 0.46],
+      ["5", 0.472],
+    ]);
+    const result = layoutCallouts([
+      part("0", 0.2, 0.2),
+      part("1", 0.2, 0.5),
+      part("2", 0.2, 0.8),
+      part("3", 0.8, 0.397),
+      part("4", 0.8, 0.46),
+      part("5", 0.8, 0.472),
+    ]).filter((item) => item.side === "right");
+
+    for (let index = 0; index < result.length; index += 1) {
+      expect(Math.abs(result[index].labelY - anchors.get(result[index].id)!))
+        .toBeLessThanOrEqual(0.1);
+      if (index > 0) {
+        expect(result[index].labelY - result[index - 1].labelY)
+          .toBeGreaterThanOrEqual(0.11 - Number.EPSILON);
+      }
+    }
+  });
+
+  it("assigns fixed label rails per side", () => {
     const result = layoutCallouts([part("0", 0.2, 0.4), part("1", 0.8, 0.6)]);
     const left = result.find((item) => item.id === "0");
     const right = result.find((item) => item.id === "1");
-    expect(left).toMatchObject({ labelX: 0.165, elbowX: 0.245 });
-    expect(right).toMatchObject({ labelX: 0.835, elbowX: 0.755 });
+    expect(left).toMatchObject({ labelX: 0.165 });
+    expect(right).toMatchObject({ labelX: 0.835 });
   });
 });

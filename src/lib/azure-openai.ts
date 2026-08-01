@@ -20,6 +20,7 @@ import {
   buildVisionSystemPrompt,
   buildVisionUserPrompt,
 } from "@/lib/prompts";
+import { makeBackgroundTransparent } from "@/lib/image-transparency";
 
 type VisionApi = "responses" | "chat-completions";
 
@@ -239,6 +240,27 @@ function imageFromResponseItem(
   throw new Error("The Azure image response contains neither b64_json nor a URL.");
 }
 
+async function imageWithTransparentBackground(src: string): Promise<{
+  src: string;
+  mimeType: "image/png";
+  width: number;
+  height: number;
+}> {
+  const match = /^data:[^;]+;base64,(.+)$/s.exec(src);
+  if (!match) {
+    throw new Error("The generated image is not a base64 data URL.");
+  }
+  const image = await makeBackgroundTransparent(
+    Buffer.from(match[1], "base64"),
+  );
+  return {
+    src: `data:image/png;base64,${image.bytes.toString("base64")}`,
+    mimeType: "image/png",
+    width: image.width,
+    height: image.height,
+  };
+}
+
 async function generateMaiImage(
   config: AzureResourceConfig,
   prompt: string,
@@ -282,11 +304,9 @@ export async function generateAzureImage(
 
   if (input.imageModel === "mai-image-2.5") {
     const image = await generateMaiImage(config, prompt, dimensions);
+    const transparentImage = await imageWithTransparentBackground(image.src);
     return {
-      src: image.src,
-      mimeType: "image/png",
-      width: dimensions.width,
-      height: dimensions.height,
+      ...transparentImage,
       revisedPrompt: image.revisedPrompt,
       prompt,
     };
@@ -306,12 +326,10 @@ export async function generateAzureImage(
     "output_format" in item ? String(item.output_format) : "png";
   const mimeType = mimeTypeFor(outputFormat);
   const image = await imageFromResponseItem(item, mimeType);
+  const transparentImage = await imageWithTransparentBackground(image.src);
 
   return {
-    src: image.src,
-    mimeType,
-    width: dimensions.width,
-    height: dimensions.height,
+    ...transparentImage,
     revisedPrompt: image.revisedPrompt,
     prompt,
   };

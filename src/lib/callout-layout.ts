@@ -5,7 +5,62 @@ export interface CalloutPosition {
   side: "left" | "right";
   labelX: number;
   labelY: number;
-  elbowX: number;
+}
+
+interface PositionBlock {
+  start: number;
+  end: number;
+  sum: number;
+  count: number;
+}
+
+function compactLabelPositions(parts: AnnotatedPart[]): number[] {
+  if (!parts.length) return [];
+  const top = 0.1;
+  const bottom = 0.9;
+  const minimumGap = parts.length === 1
+    ? 0
+    : Math.min(0.11, (bottom - top) / (parts.length - 1));
+  const blocks: PositionBlock[] = [];
+
+  // Isotonic regression on (anchorY - index * gap) finds the closest ordered
+  // positions with a guaranteed gap, rather than stretching labels across the
+  // entire column when their anchors are clustered together.
+  for (const [index, part] of parts.entries()) {
+    blocks.push({
+      start: index,
+      end: index,
+      sum: part.anchor.y - index * minimumGap,
+      count: 1,
+    });
+    while (blocks.length > 1) {
+      const current = blocks[blocks.length - 1];
+      const previous = blocks[blocks.length - 2];
+      if (previous.sum / previous.count <= current.sum / current.count) break;
+      blocks.splice(-2, 2, {
+        start: previous.start,
+        end: current.end,
+        sum: previous.sum + current.sum,
+        count: previous.count + current.count,
+      });
+    }
+  }
+
+  const basePositions = Array.from({ length: parts.length }, () => 0);
+  const maximumBase = bottom - (parts.length - 1) * minimumGap;
+  for (const block of blocks) {
+    const fitted = Math.min(
+      maximumBase,
+      Math.max(top, block.sum / block.count),
+    );
+    for (let index = block.start; index <= block.end; index += 1) {
+      basePositions[index] = fitted;
+    }
+  }
+
+  return basePositions.map((position, index) =>
+    position + index * minimumGap,
+  );
 }
 
 function distribute(
@@ -13,20 +68,13 @@ function distribute(
   side: "left" | "right",
 ): CalloutPosition[] {
   const sorted = [...parts].sort((a, b) => a.anchor.y - b.anchor.y);
-  const top = 0.1;
-  const bottom = 0.9;
+  const labelPositions = compactLabelPositions(sorted);
   return sorted.map((part, index) => {
-    const evenlySpaced = top + ((index + 1) / (sorted.length + 1)) * (bottom - top);
-    const blendedY = Math.min(
-      bottom,
-      Math.max(top, evenlySpaced * 0.7 + part.anchor.y * 0.3),
-    );
     return {
       id: part.id,
       side,
       labelX: side === "left" ? 0.165 : 0.835,
-      labelY: blendedY,
-      elbowX: side === "left" ? 0.245 : 0.755,
+      labelY: labelPositions[index],
     };
   });
 }

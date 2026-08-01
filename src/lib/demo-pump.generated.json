@@ -1,0 +1,168 @@
+{
+  "id": "offline-demo-centrifugal-pump",
+  "image": {
+    "src": "/demo-pump.png",
+    "mimeType": "image/png",
+    "width": 1536,
+    "height": 1024,
+    "revisedPrompt": null
+  },
+  "annotation": {
+    "title": "Single-stage end-suction centrifugal pump cutaway",
+    "summary": "Visible cutaway shows a teal volute casing around a bronze impeller, with the shaft extending right through a seal assembly into a ball-bearing support housing. The suction inlet faces left and the discharge outlet rises at the top.",
+    "parts": [
+      {
+        "id": "casing",
+        "name": "Casing",
+        "description": "Encloses the impeller and forms the volute that converts fluid velocity into pressure.",
+        "index": 0,
+        "visible": true,
+        "anchor": {
+          "x": 0.251,
+          "y": 0.443
+        },
+        "box": {
+          "x": 0.196,
+          "y": 0.006,
+          "width": 0.368,
+          "height": 0.978
+        },
+        "confidence": 0.94,
+        "evidence": "The teal cast body is visibly sectioned around the impeller, with a spiral/volute-shaped outer chamber and lower mounting foot.",
+        "reviewStatus": "ai-draft"
+      },
+      {
+        "id": "impeller",
+        "name": "Impeller",
+        "description": "Rotates with the shaft and transfers mechanical energy to the fluid through curved vanes.",
+        "index": 1,
+        "visible": true,
+        "anchor": {
+          "x": 0.422,
+          "y": 0.477
+        },
+        "box": {
+          "x": 0.304,
+          "y": 0.267,
+          "width": 0.188,
+          "height": 0.548
+        },
+        "confidence": 0.99,
+        "evidence": "A large bronze wheel with several curved blades is exposed by the casing cutaway.",
+        "reviewStatus": "ai-draft"
+      },
+      {
+        "id": "shaft",
+        "name": "Shaft",
+        "description": "Transfers drive torque to the impeller while maintaining its axis of rotation.",
+        "index": 2,
+        "visible": true,
+        "anchor": {
+          "x": 0.646,
+          "y": 0.472
+        },
+        "box": {
+          "x": 0.505,
+          "y": 0.382,
+          "width": 0.495,
+          "height": 0.153
+        },
+        "confidence": 0.97,
+        "evidence": "The silver cylindrical member is visible along the horizontal rotational axis, including the section passing through the bearing and the right-hand projecting end.",
+        "reviewStatus": "ai-draft"
+      },
+      {
+        "id": "seal",
+        "name": "Mechanical seal",
+        "description": "Restricts fluid leakage where the rotating shaft exits the pump casing.",
+        "index": 3,
+        "visible": true,
+        "anchor": {
+          "x": 0.531,
+          "y": 0.46
+        },
+        "box": {
+          "x": 0.489,
+          "y": 0.403,
+          "width": 0.103,
+          "height": 0.167
+        },
+        "confidence": 0.91,
+        "evidence": "Multiple closely spaced sealing rings are visibly arranged concentrically around the shaft immediately to the right of the teal pump casing.",
+        "reviewStatus": "ai-draft"
+      },
+      {
+        "id": "inlet",
+        "name": "Inlet",
+        "description": "Guides fluid axially into the low-pressure center of the impeller.",
+        "index": 4,
+        "visible": true,
+        "anchor": {
+          "x": 0.171,
+          "y": 0.585
+        },
+        "box": {
+          "x": 0.109,
+          "y": 0.379,
+          "width": 0.256,
+          "height": 0.46
+        },
+        "confidence": 0.98,
+        "evidence": "The left side visibly has a bolted circular flange and an open axial passage directed into the impeller eye.",
+        "reviewStatus": "ai-draft"
+      },
+      {
+        "id": "outlet",
+        "name": "Outlet",
+        "description": "Directs pressurized fluid from the casing into the discharge pipework.",
+        "index": 5,
+        "visible": true,
+        "anchor": {
+          "x": 0.356,
+          "y": 0.049
+        },
+        "box": {
+          "x": 0.219,
+          "y": 0.006,
+          "width": 0.274,
+          "height": 0.269
+        },
+        "confidence": 0.94,
+        "evidence": "A large upward-facing bolted flange and vertical neck are visibly connected to the upper casing.",
+        "reviewStatus": "ai-draft"
+      },
+      {
+        "id": "bearing",
+        "name": "Bearing",
+        "description": "Supports the shaft, limits radial movement, and reduces rotational friction.",
+        "index": 6,
+        "visible": true,
+        "anchor": {
+          "x": 0.772,
+          "y": 0.397
+        },
+        "box": {
+          "x": 0.725,
+          "y": 0.334,
+          "width": 0.142,
+          "height": 0.202
+        },
+        "confidence": 0.99,
+        "evidence": "Individual rolling balls and concentric bearing races are exposed in the right-side housing cutaway.",
+        "reviewStatus": "ai-draft"
+      }
+    ],
+    "warnings": [
+      "The broad casing box includes its visibly continuous discharge neck and lower mounting foot; these cast features overlap the separately identified outlet in the cutaway.",
+      "The seal is identified from the visible concentric ring stack; individual internal mechanical-seal faces are not separately distinguishable in this rendered section.",
+      "This is a curated static sample generated with Azure AI."
+    ]
+  },
+  "provenance": {
+    "source": "offline-demo",
+    "imageModel": "gpt-image-2",
+    "visionModel": "gpt-5.6-terra",
+    "generatedAt": "2026-08-01T08:48:13.091Z",
+    "reviewRequired": true
+  }
+}

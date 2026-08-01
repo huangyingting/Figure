@@ -24,7 +24,8 @@ describe("diagram prompts", () => {
     const prompt = buildImagePrompt(request);
     expect(prompt).toContain("Do not draw any words, letters, numbers");
     expect(prompt).toContain("[impeller]");
-    expect(prompt).toContain("generous neutral margin");
+    expect(prompt).toContain("converted to a transparent alpha channel");
+    expect(prompt).toContain("generous transparent margin");
   });
 
   it("passes stable component IDs to spatial grounding", () => {

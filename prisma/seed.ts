@@ -29,12 +29,25 @@ async function main() {
     });
   }
 
-  const bytes = await readFile(path.resolve("public/demo-pump.svg"));
+  const bytes = await readFile(path.resolve("public/demo-pump.png"));
   const storage = new FilesystemFigureStorage(path.resolve(process.env.FIGURE_STORAGE_DIR || ".media"));
-  const stored = await storage.put(bytes, "image/svg+xml", user.id);
+  const stored = await storage.put(bytes, demoResult.image.mimeType, user.id);
   await prisma.figure.upsert({
     where: { id: demoResult.id },
-    update: { isPublic: true, imageKey: stored.storageKey, diagramType: "cutaway", audience: "curious learners" },
+    update: {
+      title: demoResult.annotation.title,
+      summary: demoResult.annotation.summary,
+      imageKey: stored.storageKey,
+      imageMimeType: demoResult.image.mimeType,
+      imageWidth: demoResult.image.width,
+      imageHeight: demoResult.image.height,
+      imageModel: demoResult.provenance.imageModel,
+      visionModel: demoResult.provenance.visionModel,
+      annotationJson: JSON.stringify(demoResult.annotation),
+      isPublic: true,
+      diagramType: "cutaway",
+      audience: "curious learners",
+    },
     create: {
       id: demoResult.id, ownerId: user.id, title: demoResult.annotation.title,
       subject: "Inside a centrifugal pump", summary: demoResult.annotation.summary,
@@ -47,7 +60,13 @@ async function main() {
   });
 
   // Every figure carries its annotation history, starting with the AI draft.
-  if (!(await prisma.annotationRevision.findFirst({ where: { figureId: demoResult.id } }))) {
+  const demoRevision = await prisma.annotationRevision.findFirst({ where: { figureId: demoResult.id } });
+  if (demoRevision) {
+    await prisma.annotationRevision.update({
+      where: { id: demoRevision.id },
+      data: { annotationJson: JSON.stringify(demoResult.annotation) },
+    });
+  } else {
     await prisma.annotationRevision.create({
       data: { figureId: demoResult.id, annotationJson: JSON.stringify(demoResult.annotation), source: "ai-draft" },
     });

@@ -257,15 +257,15 @@ function MarketingHome() {
             <div className="rotate-[0.8deg] overflow-hidden rounded-[24px] border border-line-dark bg-paper p-[14px] shadow-[0_40px_100px_rgb(96_82_46/16%)]">
               <Image
                 className="block w-full rounded-[14px] bg-[#eef0e6]"
-                src="/demo-pump.svg"
+                src="/demo-pump.png"
                 alt="Annotated centrifugal pump cutaway"
-                width={1440}
-                height={960}
+                width={1536}
+                height={1024}
                 priority
               />
-              <span className="absolute left-[36%] top-[37%] grid h-8 w-8 place-items-center rounded-full border-4 border-paper bg-pine font-display text-[13px] font-bold text-white shadow-[0_5px_16px_rgb(18_74_56/35%)]">1</span>
-              <span className="absolute left-[43%] top-[59%] grid h-8 w-8 place-items-center rounded-full border-4 border-paper bg-pine font-display text-[13px] font-bold text-white shadow-[0_5px_16px_rgb(18_74_56/35%)]">2</span>
-              <span className="absolute right-[26%] top-[55%] grid h-8 w-8 place-items-center rounded-full border-4 border-paper bg-pine font-display text-[13px] font-bold text-white shadow-[0_5px_16px_rgb(18_74_56/35%)]">3</span>
+              <span className="absolute left-[25%] top-[44%] grid h-8 w-8 place-items-center rounded-full border-4 border-paper bg-pine font-display text-[13px] font-bold text-white shadow-[0_5px_16px_rgb(18_74_56/35%)]">1</span>
+              <span className="absolute left-[42%] top-[48%] grid h-8 w-8 place-items-center rounded-full border-4 border-paper bg-pine font-display text-[13px] font-bold text-white shadow-[0_5px_16px_rgb(18_74_56/35%)]">2</span>
+              <span className="absolute left-[65%] top-[47%] grid h-8 w-8 place-items-center rounded-full border-4 border-paper bg-pine font-display text-[13px] font-bold text-white shadow-[0_5px_16px_rgb(18_74_56/35%)]">3</span>
             </div>
             <div className="absolute -left-2 bottom-[70px] z-[2] hidden items-center gap-[10px] rounded-2xl border border-line bg-paper/95 px-4 py-3 shadow-[0_14px_35px_rgb(60_52_30/14%)] backdrop-blur-md sm:flex">
               <i className="grid h-8 w-8 place-items-center rounded-[10px] bg-pine font-display text-micro font-bold text-white">02</i>
