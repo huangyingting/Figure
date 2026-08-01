@@ -411,14 +411,12 @@ export function DiagramStudio({ headerUser }: { headerUser: HeaderUser | null })
       <AppHeader
         user={activeHeaderUser}
         extra={
-          <div className="connection-status" data-ready={canGenerate}>
-            <span className="status-dot" />
-            {status === null
-              ? "Checking Azure"
-              : canGenerate
-                ? "Pipeline ready"
-                : "Sample mode"}
-          </div>
+          status === null || canGenerate ? (
+            <div className="connection-status" data-ready={canGenerate}>
+              <span className="status-dot" />
+              {status === null ? "Checking Azure" : "Pipeline ready"}
+            </div>
+          ) : null
         }
       />
 
