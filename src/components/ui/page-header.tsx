@@ -22,16 +22,16 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "mb-[26px] flex flex-col items-start gap-6 sm:flex-row sm:items-end sm:justify-between",
+        "mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between",
         className,
       )}
     >
       <div className="min-w-0">
-        {eyebrow ? <p className="eyebrow m-0 mb-[11px]">{eyebrow}</p> : null}
-        <h1 className="m-0 font-display text-[clamp(40px,4.4vw,58px)] font-[520] leading-[1.02] tracking-[-0.055em] [&_em]:not-italic [&_em]:text-violet">
+        {eyebrow ? <p className="eyebrow m-0 mb-2">{eyebrow}</p> : null}
+        <h1 className="m-0 font-display text-[clamp(30px,3vw,40px)] font-[560] leading-[1.08] tracking-[-0.015em] [&_em]:not-italic [&_em]:text-pine-dark">
           {title}
         </h1>
-        {lead ? <p className="m-0 mt-[10px] max-w-[640px] text-lead leading-[1.55] text-muted">{lead}</p> : null}
+        {lead ? <p className="m-0 mt-[6px] max-w-[640px] text-body leading-[1.55] text-muted">{lead}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
     </div>

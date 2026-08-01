@@ -6,21 +6,21 @@ type Variant = "primary" | "outline" | "danger" | "ghost" | "accent";
 type Size = "sm" | "md" | "lg";
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-[10px] font-bold whitespace-nowrap transition-[background,border-color,transform,box-shadow,opacity] duration-150 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex items-center justify-center gap-2 rounded-full font-bold whitespace-nowrap transition-[background,border-color,color,transform,box-shadow,opacity] duration-150 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-ink text-white hover:bg-violet",
-  accent: "bg-acid text-ink hover:brightness-95",
-  outline: "border border-line-dark bg-white text-ink hover:bg-[#f2f1ed]",
-  ghost: "bg-transparent text-ink-2 hover:bg-violet-pale hover:text-violet-dark",
+  primary: "bg-pine text-white hover:bg-pine-dark",
+  accent: "bg-marigold text-ink hover:brightness-95",
+  outline: "border border-line-dark bg-paper text-ink hover:border-ink",
+  ghost: "bg-transparent text-ink-2 hover:bg-pine-pale hover:text-pine-dark",
   danger:
-    "border border-[rgba(220,38,38,0.28)] bg-white text-[#dc2626] hover:bg-[rgba(220,38,38,0.07)] hover:border-[rgba(220,38,38,0.5)]",
+    "border border-[rgba(212,80,44,0.35)] bg-paper text-coral hover:bg-[rgba(212,80,44,0.08)] hover:border-[rgba(212,80,44,0.55)]",
 };
 
 const sizes: Record<Size, string> = {
-  sm: "min-h-[38px] px-[13px] text-meta",
-  md: "min-h-[44px] px-4 text-meta",
-  lg: "min-h-[50px] px-[18px] text-body",
+  sm: "min-h-[40px] px-4 text-meta",
+  md: "min-h-[48px] px-5 text-ui",
+  lg: "min-h-[54px] px-6 text-body",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

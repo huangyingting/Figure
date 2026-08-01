@@ -18,8 +18,22 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
   const { figure: requested } = await searchParams;
 
   if (!session?.user?.id) {
-    return <ProductShell active="/quiz"><Page><PageHeader eyebrow={<><BookOpenCheck size={14} /> ACTIVE RECALL</>} title="Quiz lab" lead="Test what you noticed. Remember what matters." />
-      <QuizRunner figureId={demoResult.id} title={demoResult.annotation.title} parts={demoResult.annotation.parts} imageSrc={demoResult.image.src} persist={false} />
+    // Guests can quiz themselves on any public figure (or the sample), but
+    // nothing persists until they sign in.
+    const requestedFigure = requested
+      ? await prisma.figure.findFirst({ where: { id: requested, isPublic: true }, select: { id: true, title: true, annotationJson: true } })
+      : null;
+    const quiz = requestedFigure
+      ? { figureId: requestedFigure.id, title: requestedFigure.title, parts: parseStoredAnnotation(requestedFigure.annotationJson).parts, imageSrc: undefined }
+      : { figureId: demoResult.id, title: demoResult.annotation.title, parts: demoResult.annotation.parts, imageSrc: demoResult.image.src };
+    return <ProductShell active="/quiz"><Page>
+      <PageHeader
+        eyebrow={<><BookOpenCheck size={14} /> ACTIVE RECALL</>}
+        title="Quiz lab"
+        lead="Try a visual recall quiz. Guest attempts aren’t saved."
+        actions={<Button asChild variant="outline"><Link href="/signin?callbackUrl=/quiz">Sign in to track mastery</Link></Button>}
+      />
+      <QuizRunner figureId={quiz.figureId} title={quiz.title} parts={quiz.parts} imageSrc={quiz.imageSrc} persist={false} />
     </Page></ProductShell>;
   }
 
@@ -56,27 +70,27 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
       title="Quiz lab"
       lead="Test what you noticed. Remember what matters."
       actions={attempts.length > 0 && (
-        <div className="flex items-center gap-[10px] rounded-[10px] border border-[#d7dbb4] bg-[#f3ffd2] px-[14px] py-[10px]">
-          <Trophy size={18} className="text-[#799b18]" />
+        <div className="flex items-center gap-[10px] rounded-[10px] border border-[#eddcae] bg-[#fff3d1] px-[14px] py-[10px]">
+          <Trophy size={18} className="text-[#a97b14]" />
           <span className="grid text-micro text-muted"><strong className="font-display text-[17px] text-ink">{Math.round(attempts.reduce((sum, item) => sum + item.score / item.total, 0) / attempts.length * 100)}%</strong> recent mastery</span>
         </div>
       )}
     />
-    {figures.length > 1 && <nav className="-mt-2 mb-[18px] flex gap-[7px] overflow-auto px-[1px] pb-[10px] pt-[3px]" aria-label="Choose a figure to be quizzed on">{figures.map((figure) => <Link key={figure.id} href={`/quiz?figure=${figure.id}`} data-active={figure.id === selected?.id} aria-current={figure.id === selected?.id ? "page" : undefined} className="whitespace-nowrap rounded-full border border-line bg-white px-[13px] py-[9px] text-micro font-bold text-muted no-underline data-[active=true]:border-violet data-[active=true]:bg-violet data-[active=true]:text-white">{figure.title}</Link>)}</nav>}
+    {figures.length > 1 && <nav className="-mt-2 mb-[18px] flex gap-[7px] overflow-auto px-[1px] pb-[10px] pt-[3px]" aria-label="Choose a figure to be quizzed on">{figures.map((figure) => <Link key={figure.id} href={`/quiz?figure=${figure.id}`} data-active={figure.id === selected?.id} aria-current={figure.id === selected?.id ? "page" : undefined} className="whitespace-nowrap rounded-full border border-line bg-paper px-[13px] py-[9px] text-micro font-bold text-muted no-underline data-[active=true]:border-pine data-[active=true]:bg-pine data-[active=true]:text-white">{figure.title}</Link>)}</nav>}
     {selected ? <QuizRunner figureId={selected.id} title={selected.title} parts={parseStoredAnnotation(selected.annotationJson).parts} /> : <EmptyState large icon="?" title="Create a figure before taking a quiz." description="Every annotated component becomes a visual recall question." action={<Button asChild><Link href="/studio">Create your first figure</Link></Button>} />}
     {mastery.length > 0 && <section className="mt-[34px]">
       <header className="mb-4 flex items-baseline justify-between gap-4">
-        <h2 className="m-0 font-display text-[22px] tracking-[-0.035em]">Your mastery</h2>
-        <span className="text-[10px] text-muted">{mastery.length} {mastery.length === 1 ? "figure" : "figures"} practiced</span>
+        <h2 className="m-0 font-display text-[22px] tracking-[-0.015em]">Your mastery</h2>
+        <span className="text-micro text-muted">{mastery.length} {mastery.length === 1 ? "figure" : "figures"} practiced</span>
       </header>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">{mastery.map((item) => (
-        <Link key={item.figureId} href={`/quiz?figure=${item.figureId}`} className="grid gap-2 rounded-[13px] border border-line-dark bg-white p-[16px_18px] no-underline transition-[border-color,box-shadow] hover:border-violet hover:shadow-[0_10px_30px_rgb(23_24_29_/_7%)]">
+        <Link key={item.figureId} href={`/quiz?figure=${item.figureId}`} className="grid gap-2 rounded-[13px] border border-line-dark bg-paper p-[16px_18px] no-underline transition-[border-color,box-shadow] hover:border-pine hover:shadow-[0_10px_30px_rgb(35_33_27_/_7%)]">
           <div className="flex items-center justify-between gap-[10px]">
             <strong className="overflow-hidden overflow-ellipsis whitespace-nowrap text-meta text-ink">{item.title}</strong>
-            <b className="font-display text-[16px] text-violet-dark">{item.averagePct}%</b>
+            <b className="font-display text-[16px] text-pine-dark">{item.averagePct}%</b>
           </div>
-          <div className="h-[6px] overflow-hidden rounded-full bg-[#ecebe6]"><i className="block h-full bg-[linear-gradient(90deg,var(--color-violet),var(--color-acid))]" style={{ width: `${item.averagePct}%` }} /></div>
-          <small className="text-[9px] text-muted">Best {item.bestScore} · {item.attempts} {item.attempts === 1 ? "attempt" : "attempts"}</small>
+          <div className="h-[6px] overflow-hidden rounded-full bg-[#ecebe6]"><i className="block h-full bg-[linear-gradient(90deg,var(--color-pine),var(--color-marigold))]" style={{ width: `${item.averagePct}%` }} /></div>
+          <small className="text-[11px] text-muted">Best {item.bestScore} · {item.attempts} {item.attempts === 1 ? "attempt" : "attempts"}</small>
         </Link>
       ))}</div>
     </section>}

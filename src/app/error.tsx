@@ -13,13 +13,13 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
   }, [error]);
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_26%_18%,rgb(101_87_232/12%),transparent_26rem),#f7f6f2] px-[max(32px,calc((100vw-1100px)/2))]">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_26%_18%,rgb(28_107_82/12%),transparent_26rem),#f6f1e4] px-[max(32px,calc((100vw-1100px)/2))]">
       <header className="flex min-h-[80px] items-center border-b border-line">
         <FigureBrand compact />
       </header>
       <section className="grid min-h-[calc(100vh-80px)] max-w-[640px] content-center place-content-center">
         <p className="eyebrow mb-3">Something broke</p>
-        <h1 className="m-0 font-display text-[clamp(40px,5vw,62px)] font-[520] leading-[1.02] tracking-[-0.06em]">
+        <h1 className="m-0 font-display text-[clamp(40px,5vw,62px)] font-[520] leading-[1.02] tracking-[-0.015em]">
           This view hit an unexpected error.
         </h1>
         <span className="mt-[14px] block text-lead leading-[1.6] text-muted">

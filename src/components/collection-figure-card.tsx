@@ -31,7 +31,7 @@ export function CollectionFigureCard({ figure, collectionId, tone }: { figure: F
       <FigureCard figure={figure} tone={tone} />
       <button
         type="button"
-        className="absolute right-3 top-3 z-[2] grid h-[30px] w-[30px] place-items-center rounded-full border-0 bg-[rgb(23_24_29_/_62%)] text-white opacity-0 backdrop-blur-[6px] transition-[opacity,background] duration-150 group-hover:opacity-100 hover:not-disabled:bg-[#dc2626] focus-visible:opacity-100 disabled:cursor-default disabled:opacity-50"
+        className="absolute right-3 top-3 z-[2] grid h-[30px] w-[30px] place-items-center rounded-full border-0 bg-[rgb(35_33_27_/_62%)] text-white opacity-0 backdrop-blur-[6px] transition-[opacity,background] duration-150 group-hover:opacity-100 hover:not-disabled:bg-[#dc2626] focus-visible:opacity-100 disabled:cursor-default disabled:opacity-50"
         aria-label={`Remove ${figure.title} from this collection`}
         onClick={() => void remove()}
         disabled={removing}

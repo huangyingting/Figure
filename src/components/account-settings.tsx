@@ -51,8 +51,8 @@ export function AccountSettings({ name, email, hasPassword }: { name: string; em
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
       <Card className="rounded-2xl border-line-dark p-[26px] shadow-none">
-        <h2 className="m-0 font-display text-[20px] tracking-[-0.03em]">Profile</h2>
-        <p className="mt-[6px] mb-5 text-[11px] leading-[1.5] text-muted">Your name appears on the figures you publish.</p>
+        <h2 className="m-0 font-display text-[20px] tracking-[-0.015em]">Profile</h2>
+        <p className="mt-[6px] mb-5 text-micro leading-[1.5] text-muted">Your name appears on the figures you publish.</p>
         <form action={saveProfile} className="grid gap-[13px]">
           <Field label="Name"><Input name="name" required minLength={2} maxLength={60} defaultValue={name} /></Field>
           <Field label="Email"><Input value={email} disabled aria-label="Email (read-only)" /></Field>
@@ -64,8 +64,8 @@ export function AccountSettings({ name, email, hasPassword }: { name: string; em
       </Card>
 
       <Card className="rounded-2xl border-line-dark p-[26px] shadow-none">
-        <h2 className="m-0 font-display text-[20px] tracking-[-0.03em]">{hasPassword ? "Change password" : "Set a password"}</h2>
-        <p className="mt-[6px] mb-5 text-[11px] leading-[1.5] text-muted">{hasPassword ? "Use at least 8 characters." : "Add a password so you can sign in with email as well."}</p>
+        <h2 className="m-0 font-display text-[20px] tracking-[-0.015em]">{hasPassword ? "Change password" : "Set a password"}</h2>
+        <p className="mt-[6px] mb-5 text-micro leading-[1.5] text-muted">{hasPassword ? "Use at least 8 characters." : "Add a password so you can sign in with email as well."}</p>
         <form action={savePassword} id="password-form" className="grid gap-[13px]">
           {hasPassword && <Field label="Current password"><Input name="currentPassword" type="password" autoComplete="current-password" required minLength={1} /></Field>}
           <Field label="New password"><Input name="newPassword" type="password" autoComplete="new-password" required minLength={8} maxLength={128} placeholder="At least 8 characters" /></Field>

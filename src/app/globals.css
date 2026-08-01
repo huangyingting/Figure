@@ -1,45 +1,49 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ *
- * Figure design tokens → Tailwind theme.
- * Keeps the existing brand palette, type scale, and shadows, exposed as
- * Tailwind utilities (bg-violet, text-ink, font-display, shadow-card, …).
+ * Figure "field atlas" design tokens → Tailwind theme.
+ *
+ * Editorial identity: warm paper surfaces, deep pine for actions and
+ * links, marigold for highlights and annotation markers, Fraunces serif
+ * display over Plus Jakarta Sans UI text. Exposed as Tailwind utilities
+ * (bg-pine, text-ink, font-display, shadow-card, …).
  * ------------------------------------------------------------------ */
 @theme {
-  --color-ink: #17181d;
-  --color-ink-2: #32343c;
-  --color-muted: #777983;
-  --color-muted-2: #a5a6ad;
-  --color-line: #dddcd8;
-  --color-line-dark: #c7c5c0;
-  --color-paper: #ffffff;
-  --color-canvas: #f3f2ed;
-  --color-shell: #f5f4ef;
+  --color-ink: #23211b;
+  --color-ink-2: #454138;
+  --color-muted: #7a756a;
+  --color-muted-2: #a8a294;
+  --color-line: #e3dccb;
+  --color-line-dark: #cfc6ae;
+  --color-paper: #fffdf7;
+  --color-canvas: #f0ead9;
+  --color-shell: #f6f1e4;
 
-  --color-violet: #6557e8;
-  --color-violet-dark: #4d42bd;
-  --color-violet-pale: #eeecff;
-  --color-acid: #d9ff70;
-  --color-coral: #ff704d;
-  --color-amber: #eba839;
+  --color-pine: #1c6b52;
+  --color-pine-dark: #124a38;
+  --color-pine-pale: #e2efe6;
+  --color-marigold: #ffc94d;
+  --color-marigold-pale: #fff1cf;
+  --color-coral: #d4502c;
+  --color-amber: #d9962e;
   --color-green: #2c9a73;
 
-  --font-sans: var(--font-sans-var), system-ui, sans-serif;
-  --font-display: var(--font-display-var), var(--font-sans-var), sans-serif;
+  --font-sans: "Inter Variable", system-ui, sans-serif;
+  --font-display: "Space Grotesk Variable", "Inter Variable", system-ui, sans-serif;
 
-  --text-micro: 0.6875rem;
-  --text-meta: 0.75rem;
-  --text-ui: 0.8125rem;
-  --text-body: 0.875rem;
-  --text-lead: 0.9375rem;
+  --text-micro: 0.75rem;
+  --text-meta: 0.8125rem;
+  --text-ui: 0.875rem;
+  --text-body: 0.9375rem;
+  --text-lead: 1.0625rem;
 
-  --tracking-label: 0.14em;
+  --tracking-label: 0.12em;
 
-  --shadow-card: 0 10px 30px rgb(27 29 35 / 6%);
-  --shadow-lift: 0 18px 44px rgb(27 29 35 / 12%);
-  --shadow-float: 0 24px 70px rgb(27 29 35 / 8%);
+  --shadow-card: 0 1px 0 rgb(60 52 30 / 5%), 0 12px 32px rgb(96 82 46 / 8%);
+  --shadow-lift: 0 18px 44px rgb(96 82 46 / 14%);
+  --shadow-float: 0 24px 70px rgb(96 82 46 / 10%);
 
-  --radius-card: 0.875rem;
+  --radius-card: 1rem;
 
   --container-frame: 1240px;
 }
@@ -57,14 +61,15 @@
     margin: 0;
     min-width: 320px;
     color: var(--color-ink);
-    background:
-      radial-gradient(circle at 78% 5%, rgb(217 255 112 / 11%), transparent 24rem),
-      radial-gradient(circle at 28% 8%, rgb(101 87 232 / 8%), transparent 28rem),
-      #f7f6f2;
+    background: var(--color-shell);
     font-family: var(--font-sans);
     font-size: var(--text-body);
-    line-height: 1.55;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: #ffe4a1;
   }
 
   button,
@@ -81,7 +86,7 @@
   }
 
   :focus-visible {
-    outline: 3px solid rgb(101 87 232 / 25%);
+    outline: 3px solid rgb(28 107 82 / 30%);
     outline-offset: 3px;
   }
 }
@@ -109,11 +114,32 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    color: var(--color-violet-dark);
+    color: var(--color-pine-dark);
     font-size: var(--text-micro);
     font-weight: 800;
     letter-spacing: var(--tracking-label);
     text-transform: uppercase;
+  }
+
+  /* Marigold highlighter sweep behind a phrase inside a display heading. */
+  .highlight-sweep {
+    position: relative;
+    /* Own stacking context so the negative-z sweep stays above ancestor backgrounds. */
+    isolation: isolate;
+    white-space: nowrap;
+    font-style: normal;
+    color: var(--color-pine-dark);
+  }
+  .highlight-sweep::after {
+    content: "";
+    position: absolute;
+    inset-inline: -0.08em;
+    bottom: 0.04em;
+    height: 0.28em;
+    z-index: -1;
+    transform: rotate(-1deg);
+    background: var(--color-marigold);
+    opacity: 0.85;
   }
 
   .spin {
@@ -138,65 +164,104 @@
   }
 }
 
+@keyframes accordion-open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes skeleton {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(28 107 82 / 28%);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgb(28 107 82 / 0%);
+  }
+}
+
+@keyframes orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes focus-in {
+  from {
+    opacity: 0.6;
+    transform: scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* ------------------------------------------------------------------ *
- * Component classes for irreducibly-decorative shared chrome that would
- * be unreadable as long arbitrary-utility strings (brand mark, animated
- * nav underline). Everything else uses utilities.
+ * Component classes for irreducibly-decorative shared chrome.
  * ------------------------------------------------------------------ */
 @layer components {
-  .brand-mark {
-    position: relative;
-    width: 33px;
-    height: 33px;
-    flex: 0 0 auto;
-    border: 2px solid var(--color-ink);
-    border-radius: 11px 14px 11px 5px;
-    transform: rotate(-7deg);
+  /* Wordmark: lowercase display "figure" with a marigold full stop. */
+  .wordmark {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--color-ink);
   }
-  .brand-mark i:first-child {
-    position: absolute;
-    width: 7px;
-    height: 7px;
-    top: 7px;
-    left: 7px;
+  .wordmark::after {
+    content: ".";
+    font-style: normal;
+    color: transparent;
+    background: var(--color-marigold);
     border-radius: 50%;
-    background: var(--color-violet);
-  }
-  .brand-mark i:nth-child(2) {
-    position: absolute;
-    width: 12px;
-    height: 2px;
-    right: 3px;
-    bottom: 8px;
-    background: var(--color-ink);
-    transform: rotate(-35deg);
-  }
-  .brand-mark i:last-child {
-    position: absolute;
-    width: 7px;
-    height: 7px;
-    right: -5px;
-    bottom: -4px;
-    border: 2px solid #f7f6f2;
-    border-radius: 50%;
-    background: var(--color-acid);
+    display: inline-block;
+    width: 0.24em;
+    height: 0.24em;
+    margin-left: 0.08em;
   }
 
   .nav-link {
     position: relative;
     color: var(--color-ink-2);
-    font-size: var(--text-ui);
-    font-weight: 700;
+    font-size: var(--text-body);
+    font-weight: 650;
     text-decoration: none;
   }
   .nav-link::after {
     content: "";
     position: absolute;
     right: 0;
-    bottom: -5px;
+    bottom: -6px;
     left: 0;
-    height: 2px;
-    background: var(--color-acid);
+    height: 3px;
+    border-radius: 99px;
+    background: var(--color-marigold);
     transform: scaleX(0);
     transform-origin: right;
     transition: transform 180ms ease;
@@ -210,4 +275,3 @@
     color: var(--color-ink);
   }
 }
-

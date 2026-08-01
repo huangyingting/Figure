@@ -7,7 +7,7 @@ export default function Loading() {
       role="status"
       aria-live="polite"
     >
-      <Spinner size={34} className="text-violet" />
+      <Spinner size={34} className="text-pine" />
       <p className="m-0 text-meta font-[650] tracking-[0.02em]">Loading…</p>
     </div>
   );

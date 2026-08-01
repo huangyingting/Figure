@@ -33,7 +33,7 @@ export default async function FavoritesPage() {
       actions={<Button asChild><Link href="/discover">Find more</Link></Button>}
     />
     {visible.length
-      ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{visible.map((figure, index) => <FigureCard key={figure.id} figure={figure} tone={["violet", "blue", "coral", "acid"][index % 4]} />)}</div>
+      ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{visible.map((figure, index) => <FigureCard key={figure.id} figure={figure} tone={["pine", "blue", "coral", "marigold"][index % 4]} />)}</div>
       : <EmptyState large icon="♥" title="No favorites yet." description="Tap the heart on any figure to save it here." action={<Button asChild><Link href="/discover">Browse figures</Link></Button>} />}
   </Page></ProductShell>;
 }

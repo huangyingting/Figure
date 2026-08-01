@@ -1,18 +1,18 @@
 import { cn } from "@/components/ui/cn";
 import type { HTMLAttributes, ReactNode } from "react";
 
-type Tone = "violet" | "muted" | "green" | "amber";
+type Tone = "pine" | "muted" | "green" | "amber";
 
 const tones: Record<Tone, string> = {
-  violet: "bg-violet-pale text-violet-dark",
-  muted: "border border-line-dark bg-white text-muted",
+  pine: "bg-pine-pale text-pine-dark",
+  muted: "border border-line-dark bg-paper text-muted",
   green: "bg-[#e7f8f1] text-green",
   amber: "bg-[#fff4e0] text-amber",
 };
 
 /** Small pill label. */
 export function Badge({
-  tone = "violet",
+  tone = "pine",
   className,
   children,
   ...props

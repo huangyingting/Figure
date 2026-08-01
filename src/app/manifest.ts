@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Create, collect, and master AI-generated annotated figures.",
     start_url: "/",
     display: "standalone",
-    background_color: "#f7f6f2",
-    theme_color: "#17181d",
+    background_color: "#f6f1e4",
+    theme_color: "#23211b",
     icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml" }],
   };
 }

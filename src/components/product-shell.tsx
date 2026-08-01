@@ -11,12 +11,9 @@ export async function headerUser(): Promise<HeaderUser | null> {
 
 export function FigureBrand({ compact = false }: { compact?: boolean }) {
   return (
-    <Link className="flex items-center gap-[11px] text-ink no-underline" href="/">
-      <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
-      <span className="grid gap-px">
-        <strong className="font-display text-base tracking-[0.2em]">FIGURE</strong>
-        {!compact && <small className="text-micro font-semibold text-muted">Learn what you can see.</small>}
-      </span>
+    <Link className="grid gap-[2px] text-ink no-underline" href="/">
+      <span className="wordmark text-[27px]">figure</span>
+      {!compact && <small className="text-micro font-semibold tracking-[0.02em] text-muted">Learn what you can see.</small>}
     </Link>
   );
 }

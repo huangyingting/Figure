@@ -11,8 +11,10 @@ interface AnnotationCanvasProps {
   parts: AnnotatedPart[];
   selectedId: string | null;
   showAnnotations?: boolean;
+  /** When false, markers are selectable but anchors cannot be dragged. */
+  editable?: boolean;
   onSelect: (id: string) => void;
-  onAnchorChange: (id: string, point: Point) => void;
+  onAnchorChange?: (id: string, point: Point) => void;
 }
 
 function shortLabel(value: string): string {
@@ -24,6 +26,7 @@ export function AnnotationCanvas({
   parts,
   selectedId,
   showAnnotations = true,
+  editable = true,
   onSelect,
   onAnchorChange,
 }: AnnotationCanvasProps) {
@@ -38,11 +41,11 @@ export function AnnotationCanvas({
   const selected = parts.find((part) => part.id === selectedId);
 
   function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
-    if (!draggingId) return;
+    if (!editable || !draggingId) return;
     const bounds = event.currentTarget.getBoundingClientRect();
     const x = Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width));
     const y = Math.min(1, Math.max(0, (event.clientY - bounds.top) / bounds.height));
-    onAnchorChange(draggingId, { x, y });
+    onAnchorChange?.(draggingId, { x, y });
   }
 
   function startDragging(
@@ -58,7 +61,7 @@ export function AnnotationCanvas({
 
   return (
     <div
-      className="relative w-full overflow-hidden border border-[#c9ccc8] rounded-[5px] bg-[#e7ebe8] shadow-[inset_0_0_0_6px_rgb(255_255_255_/_34%)] isolate"
+      className="relative w-full overflow-hidden border border-[#cdc5ae] rounded-[5px] bg-[#ece6d5] shadow-[inset_0_0_0_6px_rgb(255_255_255_/_34%)] isolate"
       style={{ aspectRatio: `${image.width} / ${image.height}` }}
     >
       <Image
@@ -74,14 +77,14 @@ export function AnnotationCanvas({
         className={`absolute inset-0 w-full h-full overflow-visible [touch-action:none]${draggingId ? " cursor-grabbing" : ""}`}
         viewBox={`0 0 ${viewWidth} ${viewHeight}`}
         role="img"
-        aria-label="Editable component locations, bounding boxes, and callout lines"
+        aria-label={editable ? "Editable component locations, bounding boxes, and callout lines" : "Component locations and callout lines"}
         onPointerMove={handlePointerMove}
         onPointerUp={() => setDraggingId(null)}
         onPointerCancel={() => setDraggingId(null)}
       >
         {selected?.visible && (
           <rect
-            className="fill-[rgb(101_87_232_/_7%)] stroke-violet [stroke-width:2] [stroke-dasharray:8_6] [vector-effect:non-scaling-stroke] pointer-events-none"
+            className="fill-[rgb(28_107_82_/_7%)] stroke-pine [stroke-width:2] [stroke-dasharray:8_6] [vector-effect:non-scaling-stroke] pointer-events-none"
             x={selected.box.x * viewWidth}
             y={selected.box.y * viewHeight}
             width={selected.box.width * viewWidth}
@@ -110,7 +113,7 @@ export function AnnotationCanvas({
             return (
               <g
                 key={part.id}
-                className="group cursor-pointer outline-none [--marker:var(--color-violet)]"
+                className="group cursor-pointer outline-none [--marker:var(--color-pine)]"
                 data-selected={selectedPart}
                 role="button"
                 tabIndex={0}
@@ -128,7 +131,7 @@ export function AnnotationCanvas({
                   points={`${anchorX},${anchorY} ${elbowX},${labelY} ${labelX},${labelY}`}
                 />
                 <rect
-                  className="fill-[rgb(255_255_255_/_90%)] stroke-[rgb(23_24_29_/_15%)] [stroke-width:1] [vector-effect:non-scaling-stroke] max-[580px]:hidden group-focus:stroke-[var(--marker)] group-focus:[stroke-width:2] group-data-[selected=true]:stroke-[var(--marker)] group-data-[selected=true]:[stroke-width:2]"
+                  className="fill-[rgb(255_255_255_/_90%)] stroke-[rgb(35_33_27_/_15%)] [stroke-width:1] [vector-effect:non-scaling-stroke] max-[580px]:hidden group-focus:stroke-[var(--marker)] group-focus:[stroke-width:2] group-data-[selected=true]:stroke-[var(--marker)] group-data-[selected=true]:[stroke-width:2]"
                   x={pillX}
                   y={labelY - 18}
                   width={pillWidth}
@@ -143,13 +146,15 @@ export function AnnotationCanvas({
                 >
                   {shortLabel(part.name)}
                 </text>
-                <circle
-                  className="fill-transparent cursor-grab active:cursor-grabbing"
-                  cx={anchorX}
-                  cy={anchorY}
-                  r="28"
-                  onPointerDown={(event) => startDragging(event, part.id)}
-                />
+                {editable && (
+                  <circle
+                    className="fill-transparent cursor-grab active:cursor-grabbing"
+                    cx={anchorX}
+                    cy={anchorY}
+                    r="28"
+                    onPointerDown={(event) => startDragging(event, part.id)}
+                  />
+                )}
                 <circle
                   className="fill-[var(--marker)] stroke-white [stroke-width:1.5] [vector-effect:non-scaling-stroke]"
                   cx={anchorX}
@@ -158,7 +163,7 @@ export function AnnotationCanvas({
                   pointerEvents="none"
                 />
                 <text
-                  className="fill-white font-display text-[11px] font-bold"
+                  className="fill-white font-display text-micro font-bold"
                   x={anchorX}
                   y={anchorY + 4}
                   textAnchor="middle"
@@ -170,8 +175,8 @@ export function AnnotationCanvas({
             );
           })}
       </svg>}
-      {showAnnotations && <div className="absolute left-3 bottom-3 inline-flex items-center gap-[7px] px-[9px] py-1.5 border border-[rgb(255_255_255_/_55%)] rounded-[4px] text-[#343841] bg-[rgb(255_255_255_/_82%)] [backdrop-filter:blur(8px)] text-micro font-bold pointer-events-none max-[580px]:hidden" aria-hidden="true">
-        <span className="text-violet font-display text-[13px]">↔</span>
+      {showAnnotations && editable && <div className="absolute left-3 bottom-3 inline-flex items-center gap-[7px] px-[9px] py-1.5 border border-[rgb(255_255_255_/_55%)] rounded-[4px] text-[#454138] bg-[rgb(255_255_255_/_82%)] [backdrop-filter:blur(8px)] text-micro font-bold pointer-events-none max-[580px]:hidden" aria-hidden="true">
+        <span className="text-pine font-display text-[13px]">↔</span>
         Drag a marker to refine its anchor
       </div>}
     </div>

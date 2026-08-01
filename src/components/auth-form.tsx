@@ -12,7 +12,7 @@ import { Button, Divider, Field, FieldError, Input } from "@/components/ui";
 type SocialProvider = "google" | "facebook";
 
 const socialButtonClass =
-  "relative flex min-h-[48px] items-center justify-center gap-[11px] rounded-[10px] border border-line-dark bg-white px-11 text-ui font-bold text-ink cursor-pointer transition-[border-color,background,box-shadow,transform] duration-150 hover:not-disabled:bg-[#faf9f6] hover:not-disabled:shadow-[0_6px_18px_rgb(23_24_29_/_7%)] hover:not-disabled:-translate-y-px disabled:cursor-not-allowed disabled:opacity-55";
+  "relative flex min-h-[48px] items-center justify-center gap-[11px] rounded-[10px] border border-line-dark bg-paper px-11 text-ui font-bold text-ink cursor-pointer transition-[border-color,background,box-shadow,transform] duration-150 hover:not-disabled:bg-[#fbf7ec] hover:not-disabled:shadow-[0_6px_18px_rgb(35_33_27_/_7%)] hover:not-disabled:-translate-y-px disabled:cursor-not-allowed disabled:opacity-55";
 
 export function AuthForm({ mode, social, callbackUrl = "/library", initialError = null }: { mode: "signin" | "register"; social: { google: boolean; facebook: boolean }; callbackUrl?: string; initialError?: string | null }) {
   const router = useRouter();
@@ -48,11 +48,11 @@ export function AuthForm({ mode, social, callbackUrl = "/library", initialError 
   }
 
   return (
-    <div className="rounded-[18px] border border-line-dark bg-white/90 p-[30px] shadow-[0_30px_80px_rgb(23_24_29_/_11%)] backdrop-blur-[15px] max-[760px]:mx-auto max-[760px]:max-w-[480px] max-[760px]:px-5 max-[760px]:py-[26px]">
+    <div className="rounded-[18px] border border-line-dark bg-paper/90 p-[30px] shadow-[0_30px_80px_rgb(35_33_27_/_11%)] backdrop-blur-[15px] max-[760px]:mx-auto max-[760px]:max-w-[480px] max-[760px]:px-5 max-[760px]:py-[26px]">
       <div className="text-center">
-        <span className="mx-auto mb-[10px] grid h-[38px] w-[38px] place-items-center rounded-xl bg-violet-pale text-violet">✦</span>
-        <p className="text-micro font-extrabold uppercase tracking-[0.13em] text-violet-dark">{mode === "signin" ? "Welcome back" : "Your visual learning space"}</p>
-        <h1 className="mt-[6px] mb-[5px] font-display text-[32px] font-[560] tracking-[-0.045em]">{mode === "signin" ? "Sign in to Figure" : "Create your account"}</h1>
+        <span className="mx-auto mb-[10px] grid h-[38px] w-[38px] place-items-center rounded-xl bg-pine-pale text-pine">✦</span>
+        <p className="text-micro font-extrabold uppercase tracking-[0.13em] text-pine-dark">{mode === "signin" ? "Welcome back" : "Your visual learning space"}</p>
+        <h1 className="mt-[6px] mb-[5px] font-display text-[32px] font-[560] tracking-[-0.015em]">{mode === "signin" ? "Sign in to Figure" : "Create your account"}</h1>
         <small className="block text-ui leading-[1.6] text-muted">{mode === "signin" ? "Your collections and mastery streak are waiting." : "Start with 12 credits—enough for twelve new visual lessons."}</small>
       </div>
       {hasSocial && (
@@ -79,7 +79,7 @@ export function AuthForm({ mode, social, callbackUrl = "/library", initialError 
         {error && <FieldError>{error}</FieldError>}
         <Button type="submit" className="w-full" disabled={busy}>{pending ? <LoaderCircle className="spin" size={17} /> : <ArrowRight size={17} />}{mode === "signin" ? "Sign in" : "Create free account"}</Button>
       </form>
-      <p className="mt-4 flex items-center justify-center gap-[6px] border-t border-line pt-[15px] text-ui text-muted">{mode === "signin" ? "New to Figure?" : "Already have an account?"} <Link href={mode === "signin" ? "/register" : "/signin"} className="font-bold text-violet-dark">{mode === "signin" ? "Create an account" : "Sign in"}</Link></p>
+      <p className="mt-4 flex items-center justify-center gap-[6px] border-t border-line pt-[15px] text-ui text-muted">{mode === "signin" ? "New to Figure?" : "Already have an account?"} <Link href={mode === "signin" ? "/register" : "/signin"} className="font-bold text-pine-dark">{mode === "signin" ? "Create an account" : "Sign in"}</Link></p>
     </div>
   );
 }

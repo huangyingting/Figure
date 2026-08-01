@@ -47,7 +47,7 @@ export default async function AuthorPage({ params }: { params: Promise<{ id: str
       actions={<Button asChild><Link href="/discover">Back to discover</Link></Button>}
     />
     {figures.length
-      ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{figures.map((figure, index) => <FigureCard key={figure.id} figure={figure} tone={["violet", "coral", "acid", "blue"][index % 4]} />)}</div>
+      ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{figures.map((figure, index) => <FigureCard key={figure.id} figure={figure} tone={["pine", "coral", "marigold", "blue"][index % 4]} />)}</div>
       : <EmptyState icon="✦" title="No public figures yet" description="This creator hasn’t published anything public." action={<Button asChild><Link href="/discover">Explore other figures</Link></Button>} />}
   </Page></ProductShell>;
 }

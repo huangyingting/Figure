@@ -48,7 +48,7 @@ export function CustomSelect({
       <button
         type="button"
         className={cn(
-          "flex w-full items-center justify-between gap-4 rounded-[9px] border border-line-dark bg-white py-2 pl-[14px] pr-3 text-left text-ink cursor-pointer",
+          "flex w-full items-center justify-between gap-4 rounded-[9px] border border-line-dark bg-paper py-2 pl-[14px] pr-3 text-left text-ink cursor-pointer",
           compact ? "min-h-[40px]" : "min-h-[48px]",
         )}
         aria-haspopup="listbox"
@@ -73,14 +73,14 @@ export function CustomSelect({
         }}
       >
         <span className={compact ? "flex items-center gap-[7px]" : "grid gap-[2px]"}>
-          <small className={cn("text-[10px] font-extrabold uppercase tracking-[0.09em] text-muted", compact && "after:content-[':']")}>{label}</small>
+          <small className={cn("text-micro font-extrabold uppercase tracking-[0.09em] text-muted", compact && "after:content-[':']")}>{label}</small>
           <strong className="text-ui whitespace-nowrap">{selected?.label}</strong>
         </span>
-        <ChevronDown size={16} aria-hidden className={cn("text-violet transition-transform duration-[180ms]", open && "rotate-180")} />
+        <ChevronDown size={16} aria-hidden className={cn("text-pine transition-transform duration-[180ms]", open && "rotate-180")} />
       </button>
       {open && (
         <div
-          className="absolute right-0 top-[calc(100%+7px)] z-[80] min-w-full overflow-hidden rounded-[11px] border border-line bg-white p-[6px] shadow-[0_20px_55px_rgb(23_24_29_/_16%)]"
+          className="absolute right-0 top-[calc(100%+7px)] z-[80] min-w-full overflow-hidden rounded-[11px] border border-line bg-paper p-[6px] shadow-[0_20px_55px_rgb(35_33_27_/_16%)]"
           id={listId}
           role="listbox"
           aria-label={label}
@@ -95,7 +95,7 @@ export function CustomSelect({
               data-active={index === active}
               onMouseEnter={() => setActive(index)}
               onClick={() => choose(index)}
-              className="flex w-full min-h-[45px] items-center justify-between gap-[18px] rounded-[7px] px-[9px] py-[7px] text-left text-ink-2 cursor-pointer data-[active=true]:bg-violet-pale data-[active=true]:text-violet-dark"
+              className="flex w-full min-h-[45px] items-center justify-between gap-[18px] rounded-[7px] px-[9px] py-[7px] text-left text-ink-2 cursor-pointer data-[active=true]:bg-pine-pale data-[active=true]:text-pine-dark"
             >
               <span className="grid gap-[2px]">
                 <strong className="text-ui">{option.label}</strong>

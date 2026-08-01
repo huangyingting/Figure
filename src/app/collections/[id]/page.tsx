@@ -37,7 +37,7 @@ export default async function CollectionPage({ params }: { params: Promise<{ id:
   const collection = await loadCollection(id, session.user.id);
   if (!collection) notFound();
   return <ProductShell active="/collections"><Page>
-    <Link className="mb-[14px] inline-flex items-center gap-[7px] text-meta font-bold text-muted no-underline hover:text-violet-dark" href="/collections"><ArrowLeft size={15} />All collections</Link>
+    <Link className="mb-[14px] inline-flex items-center gap-[7px] text-meta font-bold text-muted no-underline hover:text-pine-dark" href="/collections"><ArrowLeft size={15} />All collections</Link>
     <PageHeader
       eyebrow={<><FolderHeart size={14} /> COLLECTION</>}
       title={collection.name}
@@ -49,7 +49,7 @@ export default async function CollectionPage({ params }: { params: Promise<{ id:
       </>}
     />
     {collection.figures.length
-      ? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{collection.figures.map(({ figure }, index) => <CollectionFigureCard key={figure.id} figure={figure} collectionId={collection.id} tone={["violet", "blue", "coral", "acid"][index % 4]} />)}</div>
+      ? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{collection.figures.map(({ figure }, index) => <CollectionFigureCard key={figure.id} figure={figure} collectionId={collection.id} tone={["pine", "blue", "coral", "marigold"][index % 4]} />)}</div>
       : <EmptyState large icon="✦" title="This collection is empty." description="Open any figure and use “Add to collection” to gather it here." action={<Button asChild size="lg"><Link href="/discover">Browse figures</Link></Button>} />}
   </Page></ProductShell>;
 }

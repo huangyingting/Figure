@@ -27,11 +27,11 @@ export function FavoriteButton({ figureId, initialFavorited, variant = "detail" 
 
   const cardClass = cn(
     "absolute right-3 top-3 z-[2] grid h-8 w-8 place-items-center rounded-full border-0 backdrop-blur-[6px] transition-colors duration-150 disabled:cursor-default disabled:opacity-60",
-    favorited ? "bg-white text-[#ff5b7f]" : "bg-[rgb(23_24_29_/_55%)] text-white hover:bg-[rgb(23_24_29_/_75%)]",
+    favorited ? "bg-paper text-[#ff5b7f]" : "bg-[rgb(35_33_27_/_55%)] text-white hover:bg-[rgb(35_33_27_/_75%)]",
   );
   const detailClass = cn(
     "flex min-h-[44px] items-center gap-[7px] rounded-lg border px-4 text-meta font-[750] transition-[background,border-color,color] duration-150 disabled:cursor-default disabled:opacity-60",
-    favorited ? "border-violet bg-violet-pale text-violet-dark" : "border-line-dark bg-white text-ink",
+    favorited ? "border-pine bg-pine-pale text-pine-dark" : "border-line-dark bg-paper text-ink",
   );
 
   return (
