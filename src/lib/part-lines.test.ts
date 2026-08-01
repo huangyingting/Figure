@@ -17,4 +17,37 @@ describe("parsePartLines", () => {
       "Line 1 needs",
     );
   });
+
+  it("requires at least two components", () => {
+    expect(() => parsePartLines("Casing | The outer shell")).toThrow(
+      "at least two components",
+    );
+    expect(() => parsePartLines("   \n  ")).toThrow("at least two components");
+  });
+
+  it("rejects more than twelve components", () => {
+    const lines = Array.from({ length: 13 }, (_, i) => `Part ${i} | Desc ${i}`).join("\n");
+    expect(() => parsePartLines(lines)).toThrow("maximum of 12");
+  });
+
+  it("assigns padded fallback IDs by line position", () => {
+    const parts = parsePartLines("Alpha | first\nBeta | second");
+    expect(parts.map((part) => part.id)).toEqual(["part_01", "part_02"]);
+  });
+
+  it("keeps the bracket in the name when no name follows the explicit ID", () => {
+    const parts = parsePartLines("[rotor] | spins\nCasing | shell");
+    expect(parts[0]).toEqual({ id: "part_01", name: "[rotor]", description: "spins" });
+  });
+
+  it("requires a non-empty description", () => {
+    expect(() => parsePartLines("Casing |   \nRotor | spins")).toThrow(
+      "Line 1 needs a component description",
+    );
+  });
+
+  it("trims surrounding blank lines before counting", () => {
+    const parts = parsePartLines("\n\nCasing | shell\nRotor | spins\n\n");
+    expect(parts).toHaveLength(2);
+  });
 });
