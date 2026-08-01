@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isMatch, safeCallbackUrl } from "@/auth.config";
+import { authErrorMessage, isMatch, safeCallbackUrl } from "@/auth.config";
 
 describe("safeCallbackUrl", () => {
   it("allows same-origin absolute paths", () => {
@@ -34,5 +34,21 @@ describe("isMatch", () => {
     expect(isMatch("/library/abc", ["/library"])).toBe(true);
     expect(isMatch("/librarian", ["/library"])).toBe(false);
     expect(isMatch("/discover", ["/library"])).toBe(false);
+  });
+});
+
+describe("authErrorMessage", () => {
+  it("returns null when no error code is present", () => {
+    expect(authErrorMessage(null)).toBeNull();
+    expect(authErrorMessage(undefined)).toBeNull();
+    expect(authErrorMessage("")).toBeNull();
+  });
+
+  it("explains the same-email linking case", () => {
+    expect(authErrorMessage("OAuthAccountNotLinked")).toMatch(/already registered with a password/i);
+  });
+
+  it("falls back to a generic message for unknown codes", () => {
+    expect(authErrorMessage("SomethingNew")).toMatch(/something went wrong/i);
   });
 });

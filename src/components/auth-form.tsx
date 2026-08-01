@@ -10,11 +10,11 @@ import { FacebookIcon, GoogleIcon } from "@/components/brand-icons";
 
 type SocialProvider = "google" | "facebook";
 
-export function AuthForm({ mode, social, callbackUrl = "/library" }: { mode: "signin" | "register"; social: { google: boolean; facebook: boolean }; callbackUrl?: string }) {
+export function AuthForm({ mode, social, callbackUrl = "/library", initialError = null }: { mode: "signin" | "register"; social: { google: boolean; facebook: boolean }; callbackUrl?: string; initialError?: string | null }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [socialPending, setSocialPending] = useState<SocialProvider | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
   const hasSocial = social.google || social.facebook;
   const busy = pending || socialPending !== null;
 
