@@ -5,6 +5,7 @@ import { ZodError } from "zod";
 
 import { AzureConfigurationError, planDiagramParts } from "@/lib/azure-openai";
 import { PlanDiagramRequestSchema } from "@/lib/contracts";
+import { BodyTooLargeError, readJson } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 import { auth } from "@/auth";
 
@@ -41,12 +42,18 @@ export async function POST(request: Request): Promise<NextResponse> {
       );
     }
 
-    const input = PlanDiagramRequestSchema.parse(await request.json());
+    const input = PlanDiagramRequestSchema.parse(await readJson(request, 32 * 1024));
     const plan = await planDiagramParts(input);
     return NextResponse.json(plan, {
       headers: { "Cache-Control": "no-store", "X-Request-Id": requestId },
     });
   } catch (error) {
+    if (error instanceof BodyTooLargeError) {
+      return NextResponse.json(
+        { error: "The request exceeds 32 KB.", code: "REQUEST_TOO_LARGE", requestId },
+        { status: 413 },
+      );
+    }
     if (error instanceof ZodError) {
       return NextResponse.json(
         { error: zodMessage(error), code: "INVALID_REQUEST", requestId },

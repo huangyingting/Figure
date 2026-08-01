@@ -15,6 +15,7 @@ import {
 } from "@/lib/contracts";
 import { auth } from "@/auth";
 import { consumeGenerationCredit, refundGenerationCredit } from "@/lib/credits";
+import { BodyTooLargeError, readJson } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { dataUrlToBuffer, getFigureStorage } from "@/lib/storage";
 
@@ -45,7 +46,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       );
     }
 
-    const input = GenerateDiagramRequestSchema.parse(await request.json());
+    const input = GenerateDiagramRequestSchema.parse(await readJson(request, 64 * 1024));
     const remainingCredits = await consumeGenerationCredit(session.user.id, requestId);
     if (remainingCredits === null) {
       return NextResponse.json({ error: "You need at least one credit to generate a figure.", code: "INSUFFICIENT_CREDITS", requestId }, { status: 402 });
@@ -101,6 +102,12 @@ export async function POST(request: Request): Promise<NextResponse> {
     });
   } catch (error) {
     if (chargedUserId) await refundGenerationCredit(chargedUserId, requestId).catch(console.error);
+    if (error instanceof BodyTooLargeError) {
+      return NextResponse.json(
+        { error: "The request exceeds 64 KB.", code: "REQUEST_TOO_LARGE", requestId },
+        { status: 413 },
+      );
+    }
     if (error instanceof ZodError) {
       return NextResponse.json(
         {
