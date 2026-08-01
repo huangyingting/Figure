@@ -33,12 +33,15 @@ function distribute(
 
 export function layoutCallouts(parts: AnnotatedPart[]): CalloutPosition[] {
   const visible = parts.filter((part) => part.visible);
-  const left: AnnotatedPart[] = [];
-  const right: AnnotatedPart[] = [];
-
-  for (const part of visible) {
-    (part.anchor.x < 0.5 ? left : right).push(part);
-  }
+  // Balance the two columns: sort by horizontal anchor and split at the median
+  // so left/right receive near-equal counts (the extra goes left on odd totals)
+  // while the leftmost anchors still land on the left and the rightmost on the
+  // right. This keeps callouts distributed across both sides instead of piling
+  // up wherever the anchors happen to cluster.
+  const byX = [...visible].sort((a, b) => a.anchor.x - b.anchor.x);
+  const half = Math.ceil(byX.length / 2);
+  const left = byX.slice(0, half);
+  const right = byX.slice(half);
 
   return [...distribute(left, "left"), ...distribute(right, "right")];
 }

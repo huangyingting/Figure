@@ -19,12 +19,6 @@ function shortLabel(value: string): string {
   return value.length > 16 ? `${value.slice(0, 15)}…` : value;
 }
 
-function markerTone(part: AnnotatedPart): string {
-  if (part.reviewStatus === "approved") return "approved";
-  if (part.confidence < 0.65) return "uncertain";
-  return "draft";
-}
-
 export function AnnotationCanvas({
   image,
   parts,
@@ -116,8 +110,7 @@ export function AnnotationCanvas({
             return (
               <g
                 key={part.id}
-                className="group cursor-pointer outline-none [--marker:var(--color-violet)] data-[tone=uncertain]:[--marker:var(--color-amber)] data-[tone=approved]:[--marker:var(--color-green)]"
-                data-tone={markerTone(part)}
+                className="group cursor-pointer outline-none [--marker:var(--color-violet)]"
                 data-selected={selectedPart}
                 role="button"
                 tabIndex={0}
@@ -131,11 +124,7 @@ export function AnnotationCanvas({
                 }}
               >
                 <polyline
-                  className="fill-none stroke-[rgb(255_255_255_/_86%)] [stroke-width:5] opacity-[0.92] [vector-effect:non-scaling-stroke] pointer-events-none"
-                  points={`${anchorX},${anchorY} ${elbowX},${labelY} ${labelX},${labelY}`}
-                />
-                <polyline
-                  className="fill-none stroke-[var(--marker)] [stroke-width:1.5] opacity-[0.92] [vector-effect:non-scaling-stroke] pointer-events-none group-focus:[stroke-width:2.5] group-focus:opacity-100 group-data-[selected=true]:[stroke-width:2.5] group-data-[selected=true]:opacity-100"
+                  className="fill-none stroke-[var(--marker)] [stroke-width:1.5] [vector-effect:non-scaling-stroke] pointer-events-none group-focus:[stroke-width:2.5] group-data-[selected=true]:[stroke-width:2.5]"
                   points={`${anchorX},${anchorY} ${elbowX},${labelY} ${labelX},${labelY}`}
                 />
                 <rect
@@ -154,18 +143,6 @@ export function AnnotationCanvas({
                 >
                   {shortLabel(part.name)}
                 </text>
-                <circle
-                  className="fill-[var(--marker)] stroke-white [stroke-width:3] [vector-effect:non-scaling-stroke]"
-                  cx={labelX}
-                  cy={labelY}
-                  r="12"
-                />
-                <circle
-                  className="fill-[rgb(255_255_255_/_42%)] stroke-white [stroke-width:2] [vector-effect:non-scaling-stroke] [transition:r_150ms_ease] pointer-events-none"
-                  cx={anchorX}
-                  cy={anchorY}
-                  r={selectedPart ? 19 : 16}
-                />
                 <circle
                   className="fill-transparent cursor-grab active:cursor-grabbing"
                   cx={anchorX}
