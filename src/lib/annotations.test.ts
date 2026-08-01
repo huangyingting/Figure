@@ -108,4 +108,31 @@ describe("parseStoredAnnotation", () => {
     expect(result.title).toBe("Pump");
     expect(result.parts).toHaveLength(1);
   });
+
+  it("normalizes malformed parts into a safe, renderable shape", () => {
+    const annotation = {
+      title: "Pump",
+      summary: "S",
+      parts: [
+        { id: "case" },
+        { id: "rotor", visible: true, anchor: { x: 5, y: -2 }, confidence: 9 },
+        "not-an-object",
+        null,
+      ],
+      warnings: ["keep", 42],
+    };
+    const result = parseStoredAnnotation(JSON.stringify(annotation));
+    expect(result.parts).toHaveLength(4);
+    for (const part of result.parts) {
+      expect(typeof part.anchor.x).toBe("number");
+      expect(part.anchor.x).toBeGreaterThanOrEqual(0);
+      expect(part.anchor.x).toBeLessThanOrEqual(1);
+      expect(part.box).toMatchObject({ x: 0, y: 0, width: 0, height: 0 });
+      expect(part.reviewStatus).toBe("ai-draft");
+    }
+    expect(result.parts[1].anchor).toEqual({ x: 1, y: 0 });
+    expect(result.parts[1].confidence).toBe(1);
+    expect(result.parts[2].id).toBe("part-3");
+    expect(result.warnings).toEqual(["keep"]);
+  });
 });

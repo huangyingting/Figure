@@ -3,8 +3,47 @@ import type {
   DiagramAnnotation,
   GenerateDiagramRequest,
   PartSpec,
+  ReviewStatus,
   VisionModelPayload,
 } from "@/lib/contracts";
+
+const REVIEW_STATUSES: ReadonlySet<string> = new Set([
+  "ai-draft",
+  "human-edited",
+  "approved",
+]);
+
+function normalizeStoredPart(raw: unknown, index: number): AnnotatedPart {
+  const part = (raw && typeof raw === "object" ? raw : {}) as Record<
+    string,
+    unknown
+  >;
+  const anchor = (part.anchor ?? {}) as Record<string, unknown>;
+  const box = (part.box ?? {}) as Record<string, unknown>;
+  const visible = Boolean(part.visible);
+  const reviewStatus =
+    typeof part.reviewStatus === "string" &&
+    REVIEW_STATUSES.has(part.reviewStatus)
+      ? (part.reviewStatus as ReviewStatus)
+      : "ai-draft";
+  return {
+    id: typeof part.id === "string" && part.id ? part.id : `part-${index + 1}`,
+    name: typeof part.name === "string" ? part.name : "Untitled component",
+    description: typeof part.description === "string" ? part.description : "",
+    index: typeof part.index === "number" && Number.isFinite(part.index) ? part.index : index,
+    visible,
+    anchor: { x: clamp01(anchor.x, 0.5), y: clamp01(anchor.y, 0.5) },
+    box: {
+      x: clamp01(box.x),
+      y: clamp01(box.y),
+      width: clamp01(box.width),
+      height: clamp01(box.height),
+    },
+    confidence: clamp01(part.confidence),
+    evidence: typeof part.evidence === "string" ? part.evidence : "",
+    reviewStatus,
+  };
+}
 
 export function parseStoredAnnotation(annotationJson: string): DiagramAnnotation {
   try {
@@ -13,8 +52,10 @@ export function parseStoredAnnotation(annotationJson: string): DiagramAnnotation
     return {
       title: typeof parsed.title === "string" ? parsed.title : "Untitled figure",
       summary: typeof parsed.summary === "string" ? parsed.summary : "",
-      parts: parsed.parts as AnnotatedPart[],
-      warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
+      parts: parsed.parts.map(normalizeStoredPart),
+      warnings: Array.isArray(parsed.warnings)
+        ? parsed.warnings.filter((w): w is string => typeof w === "string")
+        : [],
     };
   } catch {
     return {
