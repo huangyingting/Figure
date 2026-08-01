@@ -61,7 +61,7 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
   };
   const paginationLink = "inline-flex min-h-[42px] items-center rounded-[9px] border border-line-dark bg-paper px-[18px] text-micro font-bold text-ink no-underline transition-[background,border-color] duration-150 hover:bg-pine-pale hover:border-pine";
   const paginationDisabled = "inline-flex min-h-[42px] cursor-not-allowed items-center rounded-[9px] border border-line-dark bg-[#f1ebdd] px-[18px] text-micro font-bold text-muted-2";
-  return <ProductShell active="/discover"><Page>
+  return <ProductShell><Page>
     <PageHeader
       eyebrow={<><Sparkles size={14} /> COMMUNITY ATLAS</>}
       title="Discover"

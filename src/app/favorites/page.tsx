@@ -25,7 +25,7 @@ export default async function FavoritesPage() {
   });
   // A figure may have gone private after being favorited by another user; hide those.
   const visible = favorites.filter(({ figure }) => figure).map(({ figure }) => figure);
-  return <ProductShell active="/favorites"><Page>
+  return <ProductShell><Page>
     <PageHeader
       eyebrow={<><Heart size={14} /> SAVED</>}
       title="Favorites"

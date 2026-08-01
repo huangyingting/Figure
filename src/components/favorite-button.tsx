@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { cn } from "@/components/ui";
 
-export function FavoriteButton({ figureId, initialFavorited, variant = "detail" }: { figureId: string; initialFavorited: boolean; variant?: "detail" | "card" }) {
+export function FavoriteButton({ figureId, initialFavorited }: { figureId: string; initialFavorited: boolean }) {
   const router = useRouter();
   const [favorited, setFavorited] = useState(initialFavorited);
   const [pending, setPending] = useState(false);
@@ -25,27 +25,21 @@ export function FavoriteButton({ figureId, initialFavorited, variant = "detail" 
     router.refresh();
   }
 
-  const cardClass = cn(
-    "absolute right-3 top-3 z-[2] grid h-8 w-8 place-items-center rounded-full border-0 backdrop-blur-[6px] transition-colors duration-150 disabled:cursor-default disabled:opacity-60",
-    favorited ? "bg-paper text-[#ff5b7f]" : "bg-[rgb(35_33_27_/_55%)] text-white hover:bg-[rgb(35_33_27_/_75%)]",
-  );
-  const detailClass = cn(
-    "flex min-h-[44px] items-center gap-[7px] rounded-lg border px-4 text-meta font-[750] transition-[background,border-color,color] duration-150 disabled:cursor-default disabled:opacity-60",
-    favorited ? "border-pine bg-pine-pale text-pine-dark" : "border-line-dark bg-paper text-ink",
-  );
-
   return (
     <button
       type="button"
-      className={variant === "card" ? cardClass : detailClass}
+      className={cn(
+        "flex min-h-[44px] cursor-pointer items-center gap-[7px] rounded-full border px-4 text-meta font-[750] transition-[background,border-color,color] duration-150 disabled:cursor-default disabled:opacity-60",
+        favorited ? "border-pine bg-pine-pale text-pine-dark" : "border-line-dark bg-paper text-ink",
+      )}
       data-favorited={favorited}
       aria-pressed={favorited}
       aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
       onClick={(event) => { event.preventDefault(); event.stopPropagation(); void toggle(); }}
       disabled={pending}
     >
-      <Heart size={variant === "card" ? 15 : 16} fill={favorited ? "currentColor" : "none"} />
-      {variant === "detail" && (favorited ? "Favorited" : "Favorite")}
+      <Heart size={16} fill={favorited ? "currentColor" : "none"} />
+      {favorited ? "Favorited" : "Favorite"}
     </button>
   );
 }

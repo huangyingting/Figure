@@ -36,7 +36,7 @@ export default async function CollectionPage({ params }: { params: Promise<{ id:
   if (!session?.user?.id) redirect(`/signin?callbackUrl=/collections/${id}`);
   const collection = await loadCollection(id, session.user.id);
   if (!collection) notFound();
-  return <ProductShell active="/collections"><Page>
+  return <ProductShell><Page>
     <Link className="mb-[14px] inline-flex items-center gap-[7px] text-meta font-bold text-muted no-underline hover:text-pine-dark" href="/collections"><ArrowLeft size={15} />All collections</Link>
     <PageHeader
       eyebrow={<><FolderHeart size={14} /> COLLECTION</>}

@@ -44,14 +44,6 @@ model Account {
   @@index([userId])
 }
 
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-}
-
 model Figure {
   id             String             @id @default(cuid())
   ownerId        String
@@ -65,6 +57,8 @@ model Figure {
   imageModel     String
   visionModel    String
   annotationJson String
+  diagramType    String?
+  audience       String?
   isPublic       Boolean            @default(false)
   viewCount      Int                @default(0)
   createdAt      DateTime           @default(now())
@@ -73,9 +67,23 @@ model Figure {
   collections    CollectionFigure[]
   quizAttempts   QuizAttempt[]
   favorites      Favorite[]
+  revisions      AnnotationRevision[]
 
   @@index([ownerId, createdAt])
   @@index([isPublic, createdAt])
+}
+
+// Snapshot of the annotation layer after every meaningful change (initial AI
+// draft, each human edit, each restore), so a bad save is never destructive.
+model AnnotationRevision {
+  id             String   @id @default(cuid())
+  figureId       String
+  annotationJson String
+  source         String // "ai-draft" | "human-edit" | "restore"
+  createdAt      DateTime @default(now())
+  figure         Figure   @relation(fields: [figureId], references: [id], onDelete: Cascade)
+
+  @@index([figureId, createdAt])
 }
 
 model Collection {
@@ -105,18 +113,35 @@ model CollectionFigure {
 }
 
 model QuizAttempt {
-  id           String   @id @default(cuid())
-  userId       String
-  figureId     String
-  score        Int
-  total        Int
-  answersJson  String
-  completedAt  DateTime @default(now())
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  figure       Figure   @relation(fields: [figureId], references: [id], onDelete: Cascade)
+  id          String       @id @default(cuid())
+  userId      String
+  figureId    String
+  score       Int
+  total       Int
+  completedAt DateTime     @default(now())
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  figure      Figure       @relation(fields: [figureId], references: [id], onDelete: Cascade)
+  answers     QuizAnswer[]
 
   @@index([userId, completedAt])
   @@index([figureId])
+}
+
+// One row per answered component, so per-part accuracy is queryable.
+// userId/figureId are denormalized copies of the attempt's columns: Prisma's
+// groupBy cannot traverse relations, and "weakest components for this user on
+// this figure" is the query this table exists to serve.
+model QuizAnswer {
+  attemptId String
+  userId    String
+  figureId  String
+  partId    String
+  answer    String
+  correct   Boolean
+  attempt   QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@id([attemptId, partId])
+  @@index([userId, figureId, partId])
 }
 
 model CreditLedger {

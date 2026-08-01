@@ -22,6 +22,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   const stored = await getFigureStorage().put(bytes, source.imageMimeType, session.user.id);
 
   const annotation = parseStoredAnnotation(source.annotationJson);
+  const annotationJson = JSON.stringify(annotation);
   const copy = await prisma.figure.create({
     data: {
       ownerId: session.user.id,
@@ -34,8 +35,11 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       imageHeight: source.imageHeight,
       imageModel: source.imageModel,
       visionModel: source.visionModel,
-      annotationJson: JSON.stringify(annotation),
+      annotationJson,
+      diagramType: source.diagramType,
+      audience: source.audience,
       isPublic: false,
+      revisions: { create: { annotationJson, source: "ai-draft" } },
     },
     select: { id: true },
   });

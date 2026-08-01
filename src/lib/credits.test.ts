@@ -18,7 +18,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { consumeGenerationCredit, refundGenerationCredit } from "@/lib/credits";
+import { consumeGenerationCredit, grantSignupBonus, refundGenerationCredit } from "@/lib/credits";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -77,6 +77,29 @@ describe("refundGenerationCredit", () => {
     await refundGenerationCredit("user-1", "req-1");
 
     expect(tx.user.update).not.toHaveBeenCalled();
+    expect(tx.creditLedger.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("grantSignupBonus", () => {
+  it("records the welcome credits that explain a new account's balance", async () => {
+    tx.creditLedger.findFirst.mockResolvedValue(null);
+    tx.user.findUniqueOrThrow.mockResolvedValue({ credits: 12 });
+    tx.creditLedger.create.mockResolvedValue({});
+
+    await grantSignupBonus("user-1");
+
+    expect(tx.creditLedger.create).toHaveBeenCalledWith({
+      data: { userId: "user-1", amount: 12, balance: 12, reason: "signup_bonus" },
+    });
+  });
+
+  it("is idempotent: an already-recorded bonus is not granted twice", async () => {
+    tx.creditLedger.findFirst.mockResolvedValue({ id: "ledger-1" });
+
+    await grantSignupBonus("user-1");
+
+    expect(tx.user.findUniqueOrThrow).not.toHaveBeenCalled();
     expect(tx.creditLedger.create).not.toHaveBeenCalled();
   });
 });

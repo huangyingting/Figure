@@ -9,6 +9,7 @@ import { Button, EmptyState, Page, PageHeader } from "@/components/ui";
 import { parseStoredAnnotation } from "@/lib/annotations";
 import { demoResult } from "@/lib/demo-data";
 import { prisma } from "@/lib/prisma";
+import { computePartAccuracy, weakestParts } from "@/lib/quiz-insights";
 
 export const metadata: Metadata = { title: "Quiz lab" };
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
     const quiz = requestedFigure
       ? { figureId: requestedFigure.id, title: requestedFigure.title, parts: parseStoredAnnotation(requestedFigure.annotationJson).parts, imageSrc: undefined }
       : { figureId: demoResult.id, title: demoResult.annotation.title, parts: demoResult.annotation.parts, imageSrc: demoResult.image.src };
-    return <ProductShell active="/quiz"><Page>
+    return <ProductShell><Page>
       <PageHeader
         eyebrow={<><BookOpenCheck size={14} /> ACTIVE RECALL</>}
         title="Quiz lab"
@@ -39,6 +40,22 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
 
   const figures = await prisma.figure.findMany({ where: { OR: [{ ownerId: session.user.id }, { isPublic: true }] }, orderBy: { createdAt: "desc" }, take: 20, select: { id: true, title: true, annotationJson: true } });
   const selected = figures.find((item) => item.id === requested) ?? figures[0];
+  const selectedParts = selected ? parseStoredAnnotation(selected.annotationJson).parts : [];
+  // Per-part accuracy comes from the normalized QuizAnswer rows, so "which
+  // components do I keep missing" is a single grouped query.
+  const answerRows = selected
+    ? await prisma.quizAnswer.groupBy({
+        by: ["partId", "correct"],
+        where: { userId: session.user.id, figureId: selected.id },
+        _count: { _all: true },
+      })
+    : [];
+  const weakSpots = weakestParts(
+    computePartAccuracy(
+      answerRows.map((row) => ({ partId: row.partId, correct: row.correct, count: row._count._all })),
+      selectedParts.map((part) => ({ id: part.id, name: part.name })),
+    ),
+  );
   const attempts = await prisma.quizAttempt.findMany({ where: { userId: session.user.id }, orderBy: { completedAt: "desc" }, take: 5, include: { figure: { select: { title: true } } } });
   const masteryGroups = await prisma.quizAttempt.groupBy({
     by: ["figureId"],
@@ -64,7 +81,7 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
     })
     .filter((item) => masteryTitles.has(item.figureId))
     .sort((a, b) => b.averagePct - a.averagePct);
-  return <ProductShell active="/quiz"><Page>
+  return <ProductShell><Page>
     <PageHeader
       eyebrow={<><BookOpenCheck size={14} /> ACTIVE RECALL</>}
       title="Quiz lab"
@@ -77,7 +94,23 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
       )}
     />
     {figures.length > 1 && <nav className="-mt-2 mb-[18px] flex gap-[7px] overflow-auto px-[1px] pb-[10px] pt-[3px]" aria-label="Choose a figure to be quizzed on">{figures.map((figure) => <Link key={figure.id} href={`/quiz?figure=${figure.id}`} data-active={figure.id === selected?.id} aria-current={figure.id === selected?.id ? "page" : undefined} className="whitespace-nowrap rounded-full border border-line bg-paper px-[13px] py-[9px] text-micro font-bold text-muted no-underline data-[active=true]:border-pine data-[active=true]:bg-pine data-[active=true]:text-white">{figure.title}</Link>)}</nav>}
-    {selected ? <QuizRunner figureId={selected.id} title={selected.title} parts={parseStoredAnnotation(selected.annotationJson).parts} /> : <EmptyState large icon="?" title="Create a figure before taking a quiz." description="Every annotated component becomes a visual recall question." action={<Button asChild><Link href="/studio">Create your first figure</Link></Button>} />}
+    {selected ? <QuizRunner figureId={selected.id} title={selected.title} parts={selectedParts} /> : <EmptyState large icon="?" title="Create a figure before taking a quiz." description="Every annotated component becomes a visual recall question." action={<Button asChild><Link href="/studio">Create your first figure</Link></Button>} />}
+    {weakSpots.length > 0 && <section className="mt-[34px]">
+      <header className="mb-4 flex items-baseline justify-between gap-4">
+        <h2 className="m-0 font-display text-[22px] tracking-[-0.015em]">Components to revisit</h2>
+        <span className="text-micro text-muted">Your accuracy on this figure, weakest first</span>
+      </header>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">{weakSpots.map((spot) => (
+        <div key={spot.partId} className="grid gap-2 rounded-2xl border border-line bg-paper p-[16px]">
+          <div className="flex items-baseline justify-between gap-[10px]">
+            <strong className="overflow-hidden overflow-ellipsis whitespace-nowrap text-ui text-ink">{spot.name}</strong>
+            <b className="font-display text-[17px] text-amber">{spot.accuracyPct}%</b>
+          </div>
+          <div className="h-[5px] overflow-hidden rounded-full bg-[#eae4d2]"><i className="block h-full rounded-[inherit] bg-amber" style={{ width: `${spot.accuracyPct}%` }} /></div>
+          <small className="text-micro text-muted">{spot.correct} of {spot.attempts} answered correctly</small>
+        </div>
+      ))}</div>
+    </section>}
     {mastery.length > 0 && <section className="mt-[34px]">
       <header className="mb-4 flex items-baseline justify-between gap-4">
         <h2 className="m-0 font-display text-[22px] tracking-[-0.015em]">Your mastery</h2>

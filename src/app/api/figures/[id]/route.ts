@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { parseStoredAnnotation } from "@/lib/annotations";
 import { AnnotationUpdateSchema, type DiagramResult } from "@/lib/contracts";
 import { prisma } from "@/lib/prisma";
+import { pruneRevisions } from "@/lib/revisions";
 import { getFigureStorage } from "@/lib/storage";
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
@@ -39,13 +40,22 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     };
   }
 
-  const figure = await prisma.figure.update({
-    where: { id },
-    data: {
-      ...(typeof body?.isPublic === "boolean" ? { isPublic: body.isPublic } : {}),
-      ...(typeof body?.title === "string" && body.title.trim() ? { title: body.title.trim().slice(0, 160) } : {}),
-      ...(annotationUpdate ?? {}),
-    },
+  const figure = await prisma.$transaction(async (tx) => {
+    const updated = await tx.figure.update({
+      where: { id },
+      data: {
+        ...(typeof body?.isPublic === "boolean" ? { isPublic: body.isPublic } : {}),
+        ...(typeof body?.title === "string" && body.title.trim() ? { title: body.title.trim().slice(0, 160) } : {}),
+        ...(annotationUpdate ?? {}),
+      },
+    });
+    if (annotationUpdate) {
+      await tx.annotationRevision.create({
+        data: { figureId: id, annotationJson: annotationUpdate.annotationJson, source: "human-edit" },
+      });
+      await pruneRevisions(tx, id);
+    }
+    return updated;
   });
   return NextResponse.json({ figure });
 }

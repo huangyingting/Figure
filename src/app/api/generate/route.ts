@@ -57,6 +57,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const annotation = normalizeVisionPayload(rawAnnotation, input);
 
     const stored = await getFigureStorage().put(dataUrlToBuffer(image.src), image.mimeType, session.user.id);
+    const annotationJson = JSON.stringify(annotation);
     const figure = await prisma.figure.create({
       data: {
         id: requestId,
@@ -70,7 +71,10 @@ export async function POST(request: Request): Promise<NextResponse> {
         imageHeight: image.height,
         imageModel: input.imageModel,
         visionModel: process.env.AZURE_VISION_DEPLOYMENT || "gpt-5.6-terra",
-        annotationJson: JSON.stringify(annotation),
+        annotationJson,
+        diagramType: input.diagramType,
+        audience: input.audience,
+        revisions: { create: { annotationJson, source: "ai-draft" } },
       },
     });
 

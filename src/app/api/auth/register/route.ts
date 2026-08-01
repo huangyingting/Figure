@@ -2,6 +2,7 @@ import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { grantSignupBonus } from "@/lib/credits";
 import { prisma } from "@/lib/prisma";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
@@ -28,8 +29,10 @@ export async function POST(request: Request) {
   if (existing) return NextResponse.json({ error: "An account already exists for this email." }, { status: 409 });
 
   const passwordHash = await hash(parsed.data.password, 12);
-  await prisma.user.create({
+  const user = await prisma.user.create({
     data: { name: parsed.data.name, email: parsed.data.email, passwordHash },
+    select: { id: true },
   });
+  await grantSignupBonus(user.id);
   return NextResponse.json({ ok: true }, { status: 201 });
 }

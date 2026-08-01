@@ -14,5 +14,5 @@ export const dynamic = "force-dynamic";
 export default async function CollectionsPage() {
   const session = await auth(); if (!session?.user?.id) redirect("/signin?callbackUrl=/collections");
   const collections = await prisma.collection.findMany({ where: { ownerId: session.user.id }, orderBy: { updatedAt: "desc" }, include: { figures: { take: 4, orderBy: { addedAt: "desc" }, include: { figure: { select: { id: true, title: true } } } }, _count: { select: { figures: true } } } });
-  return <ProductShell active="/collections"><Page><PageHeader eyebrow={<><FolderHeart size={14} /> CURATED BY YOU</>} title="Collections" lead="Build a personal atlas from the figures that matter to you." /><CollectionBoard collections={collections} /></Page></ProductShell>;
+  return <ProductShell><Page><PageHeader eyebrow={<><FolderHeart size={14} /> CURATED BY YOU</>} title="Collections" lead="Build a personal atlas from the figures that matter to you." /><CollectionBoard collections={collections} /></Page></ProductShell>;
 }

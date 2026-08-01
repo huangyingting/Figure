@@ -39,7 +39,7 @@ export default async function AuthorPage({ params }: { params: Promise<{ id: str
   const { author, figures } = data;
   const displayName = author.name || "A Figure creator";
   const totalViews = figures.reduce((sum, figure) => sum + figure.viewCount, 0);
-  return <ProductShell active="/discover"><Page>
+  return <ProductShell><Page>
     <PageHeader
       eyebrow={<><Sparkles size={14} /> CREATOR</>}
       title={displayName}

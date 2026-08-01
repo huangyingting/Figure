@@ -10,10 +10,17 @@ import { prisma } from "@/lib/prisma";
 export const metadata: Metadata = { title: "Credits" };
 export const dynamic = "force-dynamic";
 
+const reasonLabels: Record<string, string> = {
+  figure_generation: "Figure generated",
+  figure_generation_refund: "Generation refunded",
+  signup_bonus: "Welcome credits",
+  promo_grant: "Bonus credits",
+};
+
 export default async function CreditsPage() {
   const session = await auth(); if (!session?.user?.id) redirect("/signin?callbackUrl=/credits");
   const [account, ledger] = await Promise.all([prisma.user.findUniqueOrThrow({ where: { id: session.user.id }, select: { credits: true, createdAt: true } }), prisma.creditLedger.findMany({ where: { userId: session.user.id }, orderBy: { createdAt: "desc" }, take: 30 })]);
-  return <ProductShell active="/credits"><Page>
+  return <ProductShell><Page>
     <PageHeader eyebrow={<><Coins size={14} /> USAGE &amp; CREDITS</>} title="Your credits" lead="One generation credit creates, grounds, and permanently stores one figure." />
     <section className="mb-7 grid grid-cols-1 overflow-hidden rounded-[18px] border border-line-dark bg-paper shadow-[0_22px_60px_rgb(35_33_27_/_7%)] md:grid-cols-2">
       <div className="grid min-h-[230px] place-items-start content-center bg-[radial-gradient(circle_at_90%_10%,rgb(255_201_77_/_30%),transparent_16rem),var(--color-pine)] p-[34px] text-white">
@@ -41,7 +48,7 @@ export default async function CreditsPage() {
         <div key={item.id} className="grid grid-cols-[35px_1fr_auto] items-center gap-3 border-b border-[#efeeeb] px-[21px] py-[13px] sm:grid-cols-[35px_1fr_auto_58px] [&_svg]:w-[15px]">
           <span data-positive={item.amount > 0} className="grid h-8 w-8 place-items-center rounded-[9px] bg-[#fff0eb] text-[#a24d39] data-[positive=true]:bg-[#e7f8f1] data-[positive=true]:text-green">{item.amount > 0 ? <ArrowUpRight /> : <ArrowDownRight />}</span>
           <div className="grid">
-            <strong className="text-micro">{item.reason === "figure_generation" ? "Figure generated" : "Generation refunded"}</strong>
+            <strong className="text-micro">{reasonLabels[item.reason] ?? item.reason}</strong>
             <small className="text-micro text-muted">{item.createdAt.toLocaleString()}</small>
           </div>
           <b className="font-display text-body">{item.amount > 0 ? "+" : ""}{item.amount}</b>

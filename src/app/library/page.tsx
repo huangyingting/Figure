@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function LibraryPage() {
   const session = await auth(); if (!session?.user?.id) redirect("/signin?callbackUrl=/library");
   const figures = await prisma.figure.findMany({ where: { ownerId: session.user.id }, orderBy: { createdAt: "desc" }, take: 120, select: { id: true, title: true, subject: true, summary: true, imageModel: true, viewCount: true, createdAt: true, owner: { select: { name: true, image: true } }, _count: { select: { collections: true, quizAttempts: true } } } });
-  return <ProductShell active="/library"><Page>
+  return <ProductShell><Page>
     <PageHeader
       eyebrow={<><Shapes size={14} /> PERSONAL LIBRARY</>}
       title="Your figures"

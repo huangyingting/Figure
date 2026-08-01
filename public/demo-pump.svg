@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 960" role="img" aria-labelledby="title description">
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="960" viewBox="0 0 1440 960" role="img" aria-labelledby="title description">
   <title id="title">Centrifugal pump cutaway</title>
   <desc id="description">An unlabelled pump cutaway used to demonstrate a separate semantic annotation layer.</desc>
   <defs>

@@ -7,6 +7,7 @@ import { compare } from "bcryptjs";
 import { z } from "zod";
 
 import { authConfig } from "@/auth.config";
+import { grantSignupBonus } from "@/lib/credits";
 import { prisma } from "@/lib/prisma";
 import { clientIp, peekRateLimit, rateLimit } from "@/lib/rate-limit";
 
@@ -52,6 +53,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(prisma),
   providers,
+  events: {
+    // OAuth signups are created by the adapter, not the register route; this
+    // keeps the ledger explaining their starting balance too.
+    async createUser({ user }) {
+      if (user.id) await grantSignupBonus(user.id).catch(console.error);
+    },
+  },
   callbacks: {
     async jwt({ token, user }) {
       if (user?.id) token.userId = user.id;

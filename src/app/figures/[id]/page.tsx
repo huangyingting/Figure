@@ -39,5 +39,13 @@ export default async function FigurePage({ params }: { params: Promise<{ id: str
   const favorited = session?.user?.id ? Boolean(await prisma.favorite.findUnique({ where: { userId_figureId: { userId: session.user.id, figureId: id } }, select: { figureId: true } })) : false;
   const result: DiagramResult = { id: figure.id, image: { src: `/api/figures/${figure.id}/image`, mimeType: figure.imageMimeType, width: figure.imageWidth, height: figure.imageHeight, revisedPrompt: null }, annotation: parseStoredAnnotation(figure.annotationJson), provenance: { source: figure.id.startsWith("offline-demo") ? "offline-demo" : "azure-generated", imageModel: figure.imageModel, visionModel: figure.visionModel, generatedAt: figure.createdAt.toISOString(), reviewRequired: true } };
   const owner = figure.ownerId === session?.user?.id;
-  return <ProductShell active={owner ? "/library" : "/discover"}><Page><FigureDetail result={result} owner={owner} isPublic={figure.isPublic} collections={collections} favorited={favorited} signedIn={Boolean(session?.user?.id)} /></Page></ProductShell>;
+  const revisions = owner
+    ? (await prisma.annotationRevision.findMany({
+        where: { figureId: id },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: { id: true, source: true, createdAt: true },
+      })).map((revision) => ({ ...revision, createdAt: revision.createdAt.toISOString() }))
+    : [];
+  return <ProductShell><Page><FigureDetail result={result} owner={owner} isPublic={figure.isPublic} collections={collections} favorited={favorited} signedIn={Boolean(session?.user?.id)} facets={{ diagramType: figure.diagramType, audience: figure.audience }} revisions={revisions} /></Page></ProductShell>;
 }

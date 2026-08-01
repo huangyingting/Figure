@@ -2,7 +2,7 @@ import { Slot } from "@/components/ui/slot";
 import { cn } from "@/components/ui/cn";
 import type { ButtonHTMLAttributes } from "react";
 
-type Variant = "primary" | "outline" | "danger" | "ghost" | "accent";
+type Variant = "primary" | "outline" | "danger" | "ghost";
 type Size = "sm" | "md" | "lg";
 
 const base =
@@ -10,7 +10,6 @@ const base =
 
 const variants: Record<Variant, string> = {
   primary: "bg-pine text-white hover:bg-pine-dark",
-  accent: "bg-marigold text-ink hover:brightness-95",
   outline: "border border-line-dark bg-paper text-ink hover:border-ink",
   ghost: "bg-transparent text-ink-2 hover:bg-pine-pale hover:text-pine-dark",
   danger:

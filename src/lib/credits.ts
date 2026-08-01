@@ -1,6 +1,24 @@
 import { prisma } from "@/lib/prisma";
 
 export const GENERATION_CREDIT_COST = 1;
+export const SIGNUP_CREDITS = 12;
+
+/**
+ * Records the ledger entry that explains a new account's starting balance.
+ * The credits themselves come from the column default on User; without this
+ * row the ledger could never reconcile against the balance. Idempotent, so
+ * both registration paths (credentials route, OAuth adapter event) may call it.
+ */
+export async function grantSignupBonus(userId: string) {
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.creditLedger.findFirst({ where: { userId, reason: "signup_bonus" } });
+    if (existing) return;
+    const user = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { credits: true } });
+    await tx.creditLedger.create({
+      data: { userId, amount: SIGNUP_CREDITS, balance: user.credits, reason: "signup_bonus" },
+    });
+  });
+}
 
 export async function consumeGenerationCredit(userId: string, referenceId: string) {
   return prisma.$transaction(async (tx) => {

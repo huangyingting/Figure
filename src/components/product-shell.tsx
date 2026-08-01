@@ -18,7 +18,7 @@ export function FigureBrand({ compact = false }: { compact?: boolean }) {
   );
 }
 
-export async function ProductShell({ children }: { children: React.ReactNode; active?: string }) {
+export async function ProductShell({ children }: { children: React.ReactNode }) {
   const user = await headerUser();
   return (
     <div className="min-h-screen bg-shell">

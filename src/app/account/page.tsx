@@ -15,7 +15,7 @@ export default async function AccountPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/signin?callbackUrl=/account");
   const account = await prisma.user.findUniqueOrThrow({ where: { id: session.user.id }, select: { name: true, email: true, passwordHash: true } });
-  return <ProductShell active="/account"><Page>
+  return <ProductShell><Page>
     <PageHeader eyebrow={<><UserCog size={14} /> ACCOUNT</>} title="Settings" lead="Manage your profile and sign-in details." />
     <AccountSettings name={account.name ?? ""} email={account.email ?? ""} hasPassword={Boolean(account.passwordHash)} />
   </Page></ProductShell>;
