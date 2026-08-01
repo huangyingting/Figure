@@ -3,11 +3,13 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { AppHeader } from "@/components/app-header";
+import { headerUser } from "@/components/product-shell";
 
-export default function Home() {
+export default async function Home() {
+  const user = await headerUser();
   return (
     <div className="fx-app marketing-shell">
-      <AppHeader />
+      <AppHeader user={user} />
       <main className="marketing-page">
       <section className="marketing-hero">
         <div className="marketing-hero-copy">

@@ -1,6 +1,13 @@
 import Link from "next/link";
 
-import { AppHeader } from "@/components/app-header";
+import { auth } from "@/auth";
+import { AppHeader, type HeaderUser } from "@/components/app-header";
+
+export async function headerUser(): Promise<HeaderUser | null> {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+  return { name: session.user.name, email: session.user.email, credits: session.user.credits };
+}
 
 export function FigureBrand({ compact = false }: { compact?: boolean }) {
   return (
@@ -11,10 +18,11 @@ export function FigureBrand({ compact = false }: { compact?: boolean }) {
   );
 }
 
-export function ProductShell({ children }: { children: React.ReactNode; active?: string }) {
+export async function ProductShell({ children }: { children: React.ReactNode; active?: string }) {
+  const user = await headerUser();
   return (
     <div className="fx-app">
-      <AppHeader />
+      <AppHeader user={user} />
       <div className="fx-main">{children}</div>
     </div>
   );

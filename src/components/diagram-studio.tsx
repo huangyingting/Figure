@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 
 import { AnnotationCanvas } from "@/components/annotation-canvas";
-import { AppHeader } from "@/components/app-header";
+import { AppHeader, type HeaderUser } from "@/components/app-header";
 import { CustomSelect } from "@/components/custom-select";
 import type {
   AnnotatedPart,
@@ -72,7 +72,7 @@ async function readApiError(response: Response, fallback: string): Promise<Error
   return new Error(`${payload.error || fallback}${request}`);
 }
 
-export function DiagramStudio() {
+export function DiagramStudio({ headerUser }: { headerUser: HeaderUser | null }) {
   const { data: session, update: updateSession } = useSession();
   const [result, setResult] = useState<DiagramResult>(demoResult);
   const [subject, setSubject] = useState("Inside a centrifugal pump");
@@ -131,6 +131,11 @@ export function DiagramStudio() {
   const isGenerating = stage === "planning" || stage === "rendering";
   const selectedModelReady = status?.imageModels[imageModel] ?? false;
   const canGenerate = Boolean(session?.user?.id && status?.visionConfigured && selectedModelReady);
+  // Seed the header from the server prop for a flicker-free first paint, then let the
+  // live session take over so credit changes after a generation are reflected.
+  const activeHeaderUser: HeaderUser | null = session?.user
+    ? { name: session.user.name, email: session.user.email, credits: session.user.credits }
+    : headerUser;
   const approvedCount = result.annotation.parts.filter(
     (part) => part.reviewStatus === "approved",
   ).length;
@@ -404,6 +409,7 @@ export function DiagramStudio() {
   return (
     <div className="app-frame">
       <AppHeader
+        user={activeHeaderUser}
         extra={
           <div className="connection-status" data-ready={canGenerate}>
             <span className="status-dot" />

@@ -3,9 +3,15 @@
 import { LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { signOut } from "next-auth/react";
 
 import { MobileMenu } from "@/components/mobile-menu";
+
+export interface HeaderUser {
+  name?: string | null;
+  email?: string | null;
+  credits: number;
+}
 
 const loggedOutNav = [
   { href: "/discover", label: "Discover" },
@@ -26,10 +32,8 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AppHeader({ extra }: { extra?: React.ReactNode }) {
-  const { data: session } = useSession();
+export function AppHeader({ user = null, extra }: { user?: HeaderUser | null; extra?: React.ReactNode }) {
   const pathname = usePathname();
-  const user = session?.user;
   const nav = user ? loggedInNav : loggedOutNav;
 
   return (
