@@ -11,5 +11,20 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   const params = await searchParams;
   const callbackUrl = safeCallbackUrl(params.callbackUrl);
   const initialError = authErrorMessage(params.error);
-  return <main className="auth-page"><header><FigureBrand /></header><div className="auth-layout"><div className="auth-art"><p>LOOK. LEARN. REMEMBER.</p><h2>Build a visual library that grows with your curiosity.</h2><div className="auth-mini-figure"><Image src="/demo-pump.svg" width={1440} height={960} alt="" /><span>7 components</span></div></div><AuthForm mode="signin" social={configuredSocialProviders()} callbackUrl={callbackUrl} initialError={initialError} /></div></main>;
+  return (
+    <main className="min-h-screen bg-[radial-gradient(circle_at_20%_52%,rgb(101_87_232_/_13%),transparent_27rem),#f7f6f2] px-[max(40px,calc((100vw-1240px)/2))] max-[1100px]:px-[max(24px,calc((100vw-1240px)/2))] max-[760px]:px-[18px]">
+      <header className="flex min-h-[80px] items-center border-b border-line"><FigureBrand /></header>
+      <div className="grid min-h-[calc(100vh-80px)] items-center gap-16 p-[40px_30px] grid-cols-[1fr_460px] max-[1100px]:grid-cols-[1fr_430px] max-[1100px]:gap-10 max-[760px]:block max-[760px]:p-[38px_0]">
+        <div className="max-[760px]:hidden">
+          <p className="text-micro font-extrabold tracking-[0.16em] text-violet-dark">LOOK. LEARN. REMEMBER.</p>
+          <h2 className="mt-4 mb-[30px] max-w-[620px] font-display text-[clamp(42px,5vw,67px)] font-medium leading-[1.03] tracking-[-0.065em]">Build a visual library that grows with your curiosity.</h2>
+          <div className="relative w-[min(540px,90%)] overflow-hidden rounded-2xl border border-line bg-white p-3 shadow-[0_25px_60px_rgb(46_37_104_/_12%)] rotate-[-2deg]">
+            <Image src="/demo-pump.svg" width={1440} height={960} alt="" className="block w-full rounded-[9px]" />
+            <span className="absolute right-5 bottom-5 rounded-md bg-violet px-[9px] py-[7px] text-[8px] font-extrabold text-white">7 components</span>
+          </div>
+        </div>
+        <AuthForm mode="signin" social={configuredSocialProviders()} callbackUrl={callbackUrl} initialError={initialError} />
+      </div>
+    </main>
+  );
 }

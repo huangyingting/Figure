@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { CustomSelect } from "@/components/custom-select";
+import { Button, Field, FieldError, Input, Textarea } from "@/components/ui";
 import { useModalDialog } from "@/components/use-modal-dialog";
 
 interface EditCollectionButtonProps {
@@ -53,21 +54,21 @@ export function EditCollectionButton({ collectionId, name, description, color }:
 
   return (
     <>
-      <button type="button" className="fx-edit-collection" onClick={open}>
+      <Button variant="outline" onClick={open}>
         <Pencil size={15} />Edit
-      </button>
+      </Button>
       {editing && (
-        <div className="modal-backdrop" role="presentation" onClick={() => setEditing(false)}>
-          <section ref={dialogRef} className="collection-modal" role="dialog" aria-modal="true" aria-labelledby="edit-collection-title" onClick={(event) => event.stopPropagation()}>
-            <button className="modal-close" onClick={() => setEditing(false)} aria-label="Close"><X /></button>
-            <p>EDIT COLLECTION</p>
-            <h2 id="edit-collection-title">Refine this collection.</h2>
-            <form action={submit}>
-              <label><span>Name</span><input name="name" required minLength={2} maxLength={60} defaultValue={name} placeholder="e.g. Mechanical systems" /></label>
-              <label><span>Description</span><textarea name="description" rows={3} maxLength={180} defaultValue={description ?? ""} placeholder="What belongs in this collection?" /></label>
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-[rgb(16_17_21_/_55%)] p-[25px] backdrop-blur-[7px]" role="presentation" onClick={() => setEditing(false)}>
+          <section ref={dialogRef} className="relative w-[min(460px,100%)] rounded-[17px] bg-white p-[30px] shadow-[0_30px_90px_rgb(0_0_0_/_28%)]" role="dialog" aria-modal="true" aria-labelledby="edit-collection-title" onClick={(event) => event.stopPropagation()}>
+            <button className="absolute right-4 top-4 grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-lg border-0 bg-[#f2f1ed] [&_svg]:w-4" type="button" onClick={() => setEditing(false)} aria-label="Close"><X /></button>
+            <p className="eyebrow m-0">EDIT COLLECTION</p>
+            <h2 className="mb-[22px] mt-[7px] font-display text-[29px] tracking-[-0.05em]" id="edit-collection-title">Refine this collection.</h2>
+            <form className="grid gap-[14px]" action={submit}>
+              <Field label="Name"><Input name="name" required minLength={2} maxLength={60} defaultValue={name} placeholder="e.g. Mechanical systems" /></Field>
+              <Field label="Description"><Textarea name="description" rows={3} maxLength={180} defaultValue={description ?? ""} placeholder="What belongs in this collection?" /></Field>
               <CustomSelect label="Color" value={tone} onChange={setTone} options={[{ value: "violet", label: "Electric violet" }, { value: "coral", label: "Warm coral" }, { value: "acid", label: "Curious lime" }, { value: "blue", label: "Blueprint blue" }]} />
-              {error && <p className="auth-error">{error}</p>}
-              <button className="auth-submit" disabled={pending}>{pending ? "Saving…" : "Save changes"}</button>
+              {error && <FieldError>{error}</FieldError>}
+              <Button type="submit" disabled={pending}>{pending ? "Saving…" : "Save changes"}</Button>
             </form>
           </section>
         </div>

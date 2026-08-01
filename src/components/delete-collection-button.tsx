@@ -4,6 +4,8 @@ import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Button } from "@/components/ui";
+
 export function DeleteCollectionButton({ collectionId, collectionName }: { collectionId: string; collectionName: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -23,8 +25,8 @@ export function DeleteCollectionButton({ collectionId, collectionName }: { colle
   }
 
   return (
-    <button type="button" className="fx-delete-collection" onClick={() => void remove()} disabled={pending}>
+    <Button variant="danger" onClick={() => void remove()} disabled={pending}>
       <Trash2 size={15} />{pending ? "Deleting…" : "Delete collection"}
-    </button>
+    </Button>
   );
 }

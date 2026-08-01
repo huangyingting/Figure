@@ -5,13 +5,13 @@ import "./globals.css";
 import { Providers } from "@/app/providers";
 
 const inter = Inter({
-  variable: "--font-sans",
+  variable: "--font-sans-var",
   subsets: ["latin"],
   display: "swap",
 });
 
 const spaceGrotesk = Space_Grotesk({
-  variable: "--font-display",
+  variable: "--font-display-var",
   subsets: ["latin"],
   display: "swap",
 });

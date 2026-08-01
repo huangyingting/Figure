@@ -4,6 +4,8 @@ import { Heart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { cn } from "@/components/ui";
+
 export function FavoriteButton({ figureId, initialFavorited, variant = "detail" }: { figureId: string; initialFavorited: boolean; variant?: "detail" | "card" }) {
   const router = useRouter();
   const [favorited, setFavorited] = useState(initialFavorited);
@@ -23,10 +25,19 @@ export function FavoriteButton({ figureId, initialFavorited, variant = "detail" 
     router.refresh();
   }
 
+  const cardClass = cn(
+    "absolute right-3 top-3 z-[2] grid h-8 w-8 place-items-center rounded-full border-0 backdrop-blur-[6px] transition-colors duration-150 disabled:cursor-default disabled:opacity-60",
+    favorited ? "bg-white text-[#ff5b7f]" : "bg-[rgb(23_24_29_/_55%)] text-white hover:bg-[rgb(23_24_29_/_75%)]",
+  );
+  const detailClass = cn(
+    "flex min-h-[44px] items-center gap-[7px] rounded-lg border px-4 text-meta font-[750] transition-[background,border-color,color] duration-150 disabled:cursor-default disabled:opacity-60",
+    favorited ? "border-violet bg-violet-pale text-violet-dark" : "border-line-dark bg-white text-ink",
+  );
+
   return (
     <button
       type="button"
-      className={`favorite-button favorite-${variant}`}
+      className={variant === "card" ? cardClass : detailClass}
       data-favorited={favorited}
       aria-pressed={favorited}
       aria-label={favorited ? "Remove from favorites" : "Add to favorites"}

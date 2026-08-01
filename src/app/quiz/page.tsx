@@ -5,6 +5,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { ProductShell } from "@/components/product-shell";
 import { QuizRunner } from "@/components/quiz-runner";
+import { Button, EmptyState, Page, PageHeader } from "@/components/ui";
 import { parseStoredAnnotation } from "@/lib/annotations";
 import { demoResult } from "@/lib/demo-data";
 import { prisma } from "@/lib/prisma";
@@ -17,9 +18,9 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
   const { figure: requested } = await searchParams;
 
   if (!session?.user?.id) {
-    return <ProductShell active="/quiz"><main className="fx-page quiz-page"><header className="fx-title-row"><div><p><BookOpenCheck size={14} /> ACTIVE RECALL</p><h1>Quiz lab</h1><span>Test what you noticed. Remember what matters.</span></div></header>
+    return <ProductShell active="/quiz"><Page><PageHeader eyebrow={<><BookOpenCheck size={14} /> ACTIVE RECALL</>} title="Quiz lab" lead="Test what you noticed. Remember what matters." />
       <QuizRunner figureId={demoResult.id} title={demoResult.annotation.title} parts={demoResult.annotation.parts} imageSrc={demoResult.image.src} persist={false} />
-    </main></ProductShell>;
+    </Page></ProductShell>;
   }
 
   const figures = await prisma.figure.findMany({ where: { OR: [{ ownerId: session.user.id }, { isPublic: true }] }, orderBy: { createdAt: "desc" }, take: 20, select: { id: true, title: true, annotationJson: true } });
@@ -49,9 +50,35 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
     })
     .filter((item) => masteryTitles.has(item.figureId))
     .sort((a, b) => b.averagePct - a.averagePct);
-  return <ProductShell active="/quiz"><main className="fx-page quiz-page"><header className="fx-title-row"><div><p><BookOpenCheck size={14} /> ACTIVE RECALL</p><h1>Quiz lab</h1><span>Test what you noticed. Remember what matters.</span></div>{attempts.length > 0 && <div className="mastery-chip"><Trophy size={18} /><span><strong>{Math.round(attempts.reduce((sum, item) => sum + item.score / item.total, 0) / attempts.length * 100)}%</strong> recent mastery</span></div>}</header>
-    {figures.length > 1 && <nav className="quiz-picker" aria-label="Choose a figure to be quizzed on">{figures.map((figure) => <Link key={figure.id} href={`/quiz?figure=${figure.id}`} data-active={figure.id === selected?.id} aria-current={figure.id === selected?.id ? "page" : undefined}>{figure.title}</Link>)}</nav>}
-    {selected ? <QuizRunner figureId={selected.id} title={selected.title} parts={parseStoredAnnotation(selected.annotationJson).parts} /> : <div className="empty-state large"><span>?</span><h2>Create a figure before taking a quiz.</h2><p>Every annotated component becomes a visual recall question.</p><Link href="/studio">Create your first figure</Link></div>}
-    {mastery.length > 0 && <section className="mastery-board"><header><h2>Your mastery</h2><span>{mastery.length} {mastery.length === 1 ? "figure" : "figures"} practiced</span></header><div className="mastery-list">{mastery.map((item) => <Link key={item.figureId} className="mastery-row" href={`/quiz?figure=${item.figureId}`}><div className="mastery-row-head"><strong>{item.title}</strong><b>{item.averagePct}%</b></div><div className="mastery-track"><i style={{ width: `${item.averagePct}%` }} /></div><small>Best {item.bestScore} · {item.attempts} {item.attempts === 1 ? "attempt" : "attempts"}</small></Link>)}</div></section>}
-  </main></ProductShell>;
+  return <ProductShell active="/quiz"><Page>
+    <PageHeader
+      eyebrow={<><BookOpenCheck size={14} /> ACTIVE RECALL</>}
+      title="Quiz lab"
+      lead="Test what you noticed. Remember what matters."
+      actions={attempts.length > 0 && (
+        <div className="flex items-center gap-[10px] rounded-[10px] border border-[#d7dbb4] bg-[#f3ffd2] px-[14px] py-[10px]">
+          <Trophy size={18} className="text-[#799b18]" />
+          <span className="grid text-micro text-muted"><strong className="font-display text-[17px] text-ink">{Math.round(attempts.reduce((sum, item) => sum + item.score / item.total, 0) / attempts.length * 100)}%</strong> recent mastery</span>
+        </div>
+      )}
+    />
+    {figures.length > 1 && <nav className="-mt-2 mb-[18px] flex gap-[7px] overflow-auto px-[1px] pb-[10px] pt-[3px]" aria-label="Choose a figure to be quizzed on">{figures.map((figure) => <Link key={figure.id} href={`/quiz?figure=${figure.id}`} data-active={figure.id === selected?.id} aria-current={figure.id === selected?.id ? "page" : undefined} className="whitespace-nowrap rounded-full border border-line bg-white px-[13px] py-[9px] text-micro font-bold text-muted no-underline data-[active=true]:border-violet data-[active=true]:bg-violet data-[active=true]:text-white">{figure.title}</Link>)}</nav>}
+    {selected ? <QuizRunner figureId={selected.id} title={selected.title} parts={parseStoredAnnotation(selected.annotationJson).parts} /> : <EmptyState large icon="?" title="Create a figure before taking a quiz." description="Every annotated component becomes a visual recall question." action={<Button asChild><Link href="/studio">Create your first figure</Link></Button>} />}
+    {mastery.length > 0 && <section className="mt-[34px]">
+      <header className="mb-4 flex items-baseline justify-between gap-4">
+        <h2 className="m-0 font-display text-[22px] tracking-[-0.035em]">Your mastery</h2>
+        <span className="text-[10px] text-muted">{mastery.length} {mastery.length === 1 ? "figure" : "figures"} practiced</span>
+      </header>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">{mastery.map((item) => (
+        <Link key={item.figureId} href={`/quiz?figure=${item.figureId}`} className="grid gap-2 rounded-[13px] border border-line-dark bg-white p-[16px_18px] no-underline transition-[border-color,box-shadow] hover:border-violet hover:shadow-[0_10px_30px_rgb(23_24_29_/_7%)]">
+          <div className="flex items-center justify-between gap-[10px]">
+            <strong className="overflow-hidden overflow-ellipsis whitespace-nowrap text-meta text-ink">{item.title}</strong>
+            <b className="font-display text-[16px] text-violet-dark">{item.averagePct}%</b>
+          </div>
+          <div className="h-[6px] overflow-hidden rounded-full bg-[#ecebe6]"><i className="block h-full bg-[linear-gradient(90deg,var(--color-violet),var(--color-acid))]" style={{ width: `${item.averagePct}%` }} /></div>
+          <small className="text-[9px] text-muted">Best {item.bestScore} · {item.attempts} {item.attempts === 1 ? "attempt" : "attempts"}</small>
+        </Link>
+      ))}</div>
+    </section>}
+  </Page></ProductShell>;
 }

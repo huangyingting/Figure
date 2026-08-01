@@ -3,6 +3,8 @@
 import { Check, ChevronDown } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
+import { cn } from "@/components/ui";
+
 export interface SelectOption { value: string; label: string; hint?: string }
 
 export function CustomSelect({
@@ -42,10 +44,13 @@ export function CustomSelect({
   }
 
   return (
-    <div className={`custom-select${compact ? " is-compact" : ""}`} ref={root}>
+    <div className="relative min-w-[188px]" ref={root}>
       <button
         type="button"
-        className="custom-select-trigger"
+        className={cn(
+          "flex w-full items-center justify-between gap-4 rounded-[9px] border border-line-dark bg-white py-2 pl-[14px] pr-3 text-left text-ink cursor-pointer",
+          compact ? "min-h-[40px]" : "min-h-[48px]",
+        )}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
@@ -67,11 +72,19 @@ export function CustomSelect({
           } else if (event.key === "Escape") setOpen(false);
         }}
       >
-        <span><small>{label}</small><strong>{selected?.label}</strong></span>
-        <ChevronDown size={16} aria-hidden />
+        <span className={compact ? "flex items-center gap-[7px]" : "grid gap-[2px]"}>
+          <small className={cn("text-[10px] font-extrabold uppercase tracking-[0.09em] text-muted", compact && "after:content-[':']")}>{label}</small>
+          <strong className="text-ui whitespace-nowrap">{selected?.label}</strong>
+        </span>
+        <ChevronDown size={16} aria-hidden className={cn("text-violet transition-transform duration-[180ms]", open && "rotate-180")} />
       </button>
       {open && (
-        <div className="custom-select-menu" id={listId} role="listbox" aria-label={label}>
+        <div
+          className="absolute right-0 top-[calc(100%+7px)] z-[80] min-w-full overflow-hidden rounded-[11px] border border-line bg-white p-[6px] shadow-[0_20px_55px_rgb(23_24_29_/_16%)]"
+          id={listId}
+          role="listbox"
+          aria-label={label}
+        >
           {options.map((option, index) => (
             <button
               type="button"
@@ -82,8 +95,12 @@ export function CustomSelect({
               data-active={index === active}
               onMouseEnter={() => setActive(index)}
               onClick={() => choose(index)}
+              className="flex w-full min-h-[45px] items-center justify-between gap-[18px] rounded-[7px] px-[9px] py-[7px] text-left text-ink-2 cursor-pointer data-[active=true]:bg-violet-pale data-[active=true]:text-violet-dark"
             >
-              <span><strong>{option.label}</strong>{option.hint && <small>{option.hint}</small>}</span>
+              <span className="grid gap-[2px]">
+                <strong className="text-ui">{option.label}</strong>
+                {option.hint && <small className="text-micro text-muted">{option.hint}</small>}
+              </span>
               {option.value === value && <Check size={15} aria-hidden />}
             </button>
           ))}

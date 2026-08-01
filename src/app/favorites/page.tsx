@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { FigureCard } from "@/components/figure-card";
 import { ProductShell } from "@/components/product-shell";
+import { Button, EmptyState, Page, PageHeader } from "@/components/ui";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = { title: "Favorites" };
@@ -24,10 +25,15 @@ export default async function FavoritesPage() {
   });
   // A figure may have gone private after being favorited by another user; hide those.
   const visible = favorites.filter(({ figure }) => figure).map(({ figure }) => figure);
-  return <ProductShell active="/favorites"><main className="fx-page">
-    <header className="fx-title-row"><div><p><Heart size={14} /> SAVED</p><h1>Favorites</h1><span>Figures you’ve bookmarked for quick access.</span></div><Link href="/discover">Find more</Link></header>
+  return <ProductShell active="/favorites"><Page>
+    <PageHeader
+      eyebrow={<><Heart size={14} /> SAVED</>}
+      title="Favorites"
+      lead="Figures you’ve bookmarked for quick access."
+      actions={<Button asChild><Link href="/discover">Find more</Link></Button>}
+    />
     {visible.length
-      ? <div className="figure-grid">{visible.map((figure, index) => <FigureCard key={figure.id} figure={figure} tone={["violet", "blue", "coral", "acid"][index % 4]} />)}</div>
-      : <div className="empty-state large"><span>♥</span><h2>No favorites yet.</h2><p>Tap the heart on any figure to save it here.</p><Link href="/discover">Browse figures</Link></div>}
-  </main></ProductShell>;
+      ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{visible.map((figure, index) => <FigureCard key={figure.id} figure={figure} tone={["violet", "blue", "coral", "acid"][index % 4]} />)}</div>
+      : <EmptyState large icon="♥" title="No favorites yet." description="Tap the heart on any figure to save it here." action={<Button asChild><Link href="/discover">Browse figures</Link></Button>} />}
+  </Page></ProductShell>;
 }

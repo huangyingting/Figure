@@ -4,26 +4,36 @@ import { RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
 
+import { FigureBrand } from "@/components/product-shell";
+import { Button } from "@/components/ui";
+
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error(error);
   }, [error]);
 
   return (
-    <main className="notfound-page">
-      <header>
-        <Link className="fx-brand" href="/">
-          <span className="fx-brand-mark"><i /><i /><i /></span>
-          <span><strong>FIGURE</strong></span>
-        </Link>
+    <main className="min-h-screen bg-[radial-gradient(circle_at_26%_18%,rgb(101_87_232/12%),transparent_26rem),#f7f6f2] px-[max(32px,calc((100vw-1100px)/2))]">
+      <header className="flex min-h-[80px] items-center border-b border-line">
+        <FigureBrand compact />
       </header>
-      <section>
-        <p>SOMETHING BROKE</p>
-        <h1>This view hit an unexpected error.</h1>
-        <span>The issue has been logged. You can retry, or head back to a stable page.{error.digest ? ` Reference ${error.digest}.` : ""}</span>
-        <div>
-          <button className="notfound-primary" type="button" onClick={() => reset()}><RotateCcw size={17} />Try again</button>
-          <Link className="notfound-secondary" href="/discover">Browse public figures</Link>
+      <section className="grid min-h-[calc(100vh-80px)] max-w-[640px] content-center place-content-center">
+        <p className="eyebrow mb-3">Something broke</p>
+        <h1 className="m-0 font-display text-[clamp(40px,5vw,62px)] font-[520] leading-[1.02] tracking-[-0.06em]">
+          This view hit an unexpected error.
+        </h1>
+        <span className="mt-[14px] block text-lead leading-[1.6] text-muted">
+          The issue has been logged. You can retry, or head back to a stable page.
+          {error.digest ? ` Reference ${error.digest}.` : ""}
+        </span>
+        <div className="mt-[28px] flex flex-wrap gap-[10px]">
+          <Button size="lg" onClick={() => reset()}>
+            <RotateCcw size={17} />
+            Try again
+          </Button>
+          <Button asChild variant="outline" size="lg">
+            <Link href="/discover">Browse public figures</Link>
+          </Button>
         </div>
       </section>
     </main>

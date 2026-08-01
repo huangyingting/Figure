@@ -7,8 +7,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { FacebookIcon, GoogleIcon } from "@/components/brand-icons";
+import { Button, Divider, Field, FieldError, Input } from "@/components/ui";
 
 type SocialProvider = "google" | "facebook";
+
+const socialButtonClass =
+  "relative flex min-h-[48px] items-center justify-center gap-[11px] rounded-[10px] border border-line-dark bg-white px-11 text-ui font-bold text-ink cursor-pointer transition-[border-color,background,box-shadow,transform] duration-150 hover:not-disabled:bg-[#faf9f6] hover:not-disabled:shadow-[0_6px_18px_rgb(23_24_29_/_7%)] hover:not-disabled:-translate-y-px disabled:cursor-not-allowed disabled:opacity-55";
 
 export function AuthForm({ mode, social, callbackUrl = "/library", initialError = null }: { mode: "signin" | "register"; social: { google: boolean; facebook: boolean }; callbackUrl?: string; initialError?: string | null }) {
   const router = useRouter();
@@ -44,38 +48,38 @@ export function AuthForm({ mode, social, callbackUrl = "/library", initialError 
   }
 
   return (
-    <div className="auth-card">
-      <div className="auth-card-intro">
-        <span>✦</span>
-        <p>{mode === "signin" ? "Welcome back" : "Your visual learning space"}</p>
-        <h1>{mode === "signin" ? "Sign in to Figure" : "Create your account"}</h1>
-        <small>{mode === "signin" ? "Your collections and mastery streak are waiting." : "Start with 12 credits—enough for twelve new visual lessons."}</small>
+    <div className="rounded-[18px] border border-line-dark bg-white/90 p-[30px] shadow-[0_30px_80px_rgb(23_24_29_/_11%)] backdrop-blur-[15px] max-[760px]:mx-auto max-[760px]:max-w-[480px] max-[760px]:px-5 max-[760px]:py-[26px]">
+      <div className="text-center">
+        <span className="mx-auto mb-[10px] grid h-[38px] w-[38px] place-items-center rounded-xl bg-violet-pale text-violet">✦</span>
+        <p className="text-micro font-extrabold uppercase tracking-[0.13em] text-violet-dark">{mode === "signin" ? "Welcome back" : "Your visual learning space"}</p>
+        <h1 className="mt-[6px] mb-[5px] font-display text-[32px] font-[560] tracking-[-0.045em]">{mode === "signin" ? "Sign in to Figure" : "Create your account"}</h1>
+        <small className="block text-ui leading-[1.6] text-muted">{mode === "signin" ? "Your collections and mastery streak are waiting." : "Start with 12 credits—enough for twelve new visual lessons."}</small>
       </div>
       {hasSocial && (
-        <div className="social-buttons">
+        <div className="mt-[18px] grid gap-[9px]">
           {social.google && (
-            <button type="button" className="social-button" data-provider="google" onClick={() => continueWith("google")} disabled={busy}>
-              {socialPending === "google" ? <LoaderCircle className="spin" size={17} /> : <GoogleIcon size={18} />}
-              <span>Continue with Google</span>
+            <button type="button" className={socialButtonClass} data-provider="google" onClick={() => continueWith("google")} disabled={busy}>
+              {socialPending === "google" ? <LoaderCircle className="spin absolute left-4 text-muted" size={17} /> : <span className="absolute left-4 inline-flex"><GoogleIcon size={18} /></span>}
+              <span className="whitespace-nowrap">Continue with Google</span>
             </button>
           )}
           {social.facebook && (
-            <button type="button" className="social-button" data-provider="facebook" onClick={() => continueWith("facebook")} disabled={busy}>
-              {socialPending === "facebook" ? <LoaderCircle className="spin" size={17} /> : <FacebookIcon size={18} />}
-              <span>Continue with Facebook</span>
+            <button type="button" className={socialButtonClass} data-provider="facebook" onClick={() => continueWith("facebook")} disabled={busy}>
+              {socialPending === "facebook" ? <LoaderCircle className="spin absolute left-4 text-muted" size={17} /> : <span className="absolute left-4 inline-flex"><FacebookIcon size={18} /></span>}
+              <span className="whitespace-nowrap">Continue with Facebook</span>
             </button>
           )}
         </div>
       )}
-      {hasSocial && <div className="auth-divider"><span>or use email</span></div>}
-      <form action={submit}>
-        {mode === "register" && <label><span>Name</span><input name="name" autoComplete="name" minLength={2} required placeholder="Ada Lovelace" disabled={busy} /></label>}
-        <label><span>Email</span><input name="email" type="email" autoComplete="email" required placeholder="you@example.com" disabled={busy} /></label>
-        <label><span>Password</span><input name="password" type="password" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} required placeholder="At least 8 characters" disabled={busy} /></label>
-        {error && <p className="auth-error" role="alert">{error}</p>}
-        <button className="auth-submit" disabled={busy}>{pending ? <LoaderCircle className="spin" size={17} /> : <ArrowRight size={17} />}{mode === "signin" ? "Sign in" : "Create free account"}</button>
+      {hasSocial && <Divider className="my-[15px]">or use email</Divider>}
+      <form action={submit} className="grid gap-3">
+        {mode === "register" && <Field label="Name"><Input name="name" autoComplete="name" minLength={2} required placeholder="Ada Lovelace" disabled={busy} /></Field>}
+        <Field label="Email"><Input name="email" type="email" autoComplete="email" required placeholder="you@example.com" disabled={busy} /></Field>
+        <Field label="Password"><Input name="password" type="password" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} required placeholder="At least 8 characters" disabled={busy} /></Field>
+        {error && <FieldError>{error}</FieldError>}
+        <Button type="submit" className="w-full" disabled={busy}>{pending ? <LoaderCircle className="spin" size={17} /> : <ArrowRight size={17} />}{mode === "signin" ? "Sign in" : "Create free account"}</Button>
       </form>
-      <p className="auth-switch">{mode === "signin" ? "New to Figure?" : "Already have an account?"} <Link href={mode === "signin" ? "/register" : "/signin"}>{mode === "signin" ? "Create an account" : "Sign in"}</Link></p>
+      <p className="mt-4 flex items-center justify-center gap-[6px] border-t border-line pt-[15px] text-ui text-muted">{mode === "signin" ? "New to Figure?" : "Already have an account?"} <Link href={mode === "signin" ? "/register" : "/signin"} className="font-bold text-violet-dark">{mode === "signin" ? "Create an account" : "Sign in"}</Link></p>
     </div>
   );
 }
