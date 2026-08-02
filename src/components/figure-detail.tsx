@@ -1,12 +1,11 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
 import { BookOpenCheck, Check, Copy, FolderPlus, Globe2, Lock, Pencil, Plus, Share2, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { AnnotationCanvas } from "@/components/annotation-canvas";
 import { CustomSelect } from "@/components/custom-select";
 import { FavoriteButton } from "@/components/favorite-button";
 import { Button, Card, Input } from "@/components/ui";
@@ -73,9 +72,14 @@ export function FigureDetail({ result, owner, isPublic, collections, favorited, 
     </header>
     <div className="grid grid-cols-1 overflow-hidden rounded-[17px] border border-line-dark bg-paper shadow-[0_23px_65px_rgb(35_33_27_/_8%)] lg:grid-cols-[minmax(0,1.5fr)_minmax(310px,0.5fr)]">
       <section className="relative grid min-h-[380px] place-items-center bg-[#ece6d5] p-3 md:min-h-[580px] md:p-7">
-        <div className="relative inline-block max-w-full leading-[0]">
-          <img src={result.image.src} alt={result.annotation.title} width={result.image.width} height={result.image.height} className="block h-auto max-h-[594px] w-auto max-w-full rounded-[10px]" />
-          {result.annotation.parts.filter((part) => part.visible).map((part) => <button type="button" key={part.id} aria-label={part.name} aria-pressed={part.id === selectedPart} data-active={part.id === selectedPart} onClick={() => setSelectedPart(part.id)} style={{ left: `${part.anchor.x * 100}%`, top: `${part.anchor.y * 100}%` }} className="absolute grid h-7 w-7 -translate-x-1/2 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-4 border-white bg-pine text-[11px] font-extrabold text-white shadow-[0_5px_15px_rgb(35_33_27_/_30%)] data-[active=true]:h-[35px] data-[active=true]:w-[35px] data-[active=true]:bg-marigold data-[active=true]:text-ink">{part.index + 1}</button>)}
+        <div className="w-full max-w-[900px]">
+          <AnnotationCanvas
+            image={result.image}
+            parts={result.annotation.parts}
+            selectedId={selectedPart}
+            editable={false}
+            onSelect={setSelectedPart}
+          />
         </div>
       </section>
       <aside className="flex max-h-[720px] flex-col border-t border-line p-6 lg:border-l lg:border-t-0">
