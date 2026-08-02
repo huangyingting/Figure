@@ -4,6 +4,11 @@ import generatedDemoResult from "@/lib/demo-pump.generated.json";
 
 export const demoResult = generatedDemoResult as DiagramResult;
 
+export const demoSubject = {
+  en: "Inside a centrifugal pump",
+  "zh-CN": "离心泵内部结构",
+} satisfies Record<Locale, string>;
+
 const chineseParts: Record<string, { name: string; description: string; evidence: string }> = {
   casing: {
     name: "泵壳",
@@ -61,5 +66,21 @@ export function localizedDemoResult(locale: Locale): DiagramResult {
         "这是使用 Azure AI 生成并经过整理的静态示例。",
       ],
     },
+  };
+}
+
+export function localizeDemoFigure<T extends {
+  id: string;
+  title: string;
+  subject?: string;
+  summary?: string;
+}>(figure: T, locale: Locale): T {
+  if (locale === "en" || figure.id !== demoResult.id) return figure;
+  const localized = localizedDemoResult(locale);
+  return {
+    ...figure,
+    title: localized.annotation.title,
+    ...(figure.subject === undefined ? {} : { subject: demoSubject[locale] }),
+    ...(figure.summary === undefined ? {} : { summary: localized.annotation.summary }),
   };
 }

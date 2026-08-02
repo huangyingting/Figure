@@ -7,6 +7,7 @@ import { useState } from "react";
 import { CustomSelect } from "@/components/custom-select";
 import { Button, Field, FieldError, Input, Textarea } from "@/components/ui";
 import { useModalDialog } from "@/components/use-modal-dialog";
+import { useI18n } from "@/components/i18n-provider";
 
 interface EditCollectionButtonProps {
   collectionId: string;
@@ -16,6 +17,7 @@ interface EditCollectionButtonProps {
 }
 
 export function EditCollectionButton({ collectionId, name, description, color }: EditCollectionButtonProps) {
+  const { t } = useI18n();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [tone, setTone] = useState(color);
@@ -43,7 +45,7 @@ export function EditCollectionButton({ collectionId, name, description, color }:
     });
     if (!response.ok) {
       const body = (await response.json().catch(() => ({}))) as { error?: string };
-      setError(body.error || "Could not update the collection.");
+      setError(t(body.error || "Could not update the collection."));
       setPending(false);
       return;
     }
@@ -55,20 +57,20 @@ export function EditCollectionButton({ collectionId, name, description, color }:
   return (
     <>
       <Button variant="outline" onClick={open}>
-        <Pencil size={15} />Edit
+        <Pencil size={15} />{t("Edit")}
       </Button>
       {editing && (
         <div className="fixed inset-0 z-[100] grid place-items-center bg-[rgb(26_25_20_/_55%)] p-[25px] backdrop-blur-[7px]" role="presentation" onClick={() => setEditing(false)}>
           <section ref={dialogRef} className="relative w-[min(460px,100%)] rounded-[17px] bg-paper p-[30px] shadow-[0_30px_90px_rgb(0_0_0_/_28%)]" role="dialog" aria-modal="true" aria-labelledby="edit-collection-title" onClick={(event) => event.stopPropagation()}>
-            <button className="absolute right-4 top-4 grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-lg border-0 bg-[#f1ebdd] [&_svg]:w-4" type="button" onClick={() => setEditing(false)} aria-label="Close"><X /></button>
-            <p className="eyebrow m-0">EDIT COLLECTION</p>
-            <h2 className="mb-[22px] mt-[7px] font-display text-[29px] tracking-[-0.015em]" id="edit-collection-title">Refine this collection.</h2>
+            <button className="absolute right-4 top-4 grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-lg border-0 bg-[#f1ebdd] [&_svg]:w-4" type="button" onClick={() => setEditing(false)} aria-label={t("Close")}><X /></button>
+            <p className="eyebrow m-0">{t("EDIT COLLECTION")}</p>
+            <h2 className="mb-[22px] mt-[7px] font-display text-[29px] tracking-[-0.015em]" id="edit-collection-title">{t("Refine this collection.")}</h2>
             <form className="grid gap-[14px]" action={submit}>
-              <Field label="Name"><Input name="name" required minLength={2} maxLength={60} defaultValue={name} placeholder="e.g. Mechanical systems" /></Field>
-              <Field label="Description"><Textarea name="description" rows={3} maxLength={180} defaultValue={description ?? ""} placeholder="What belongs in this collection?" /></Field>
-              <CustomSelect label="Color" value={tone} onChange={setTone} options={[{ value: "violet", label: "Deep pine" }, { value: "coral", label: "Warm coral" }, { value: "acid", label: "Marigold" }, { value: "blue", label: "Blueprint blue" }]} />
+              <Field label={t("Name")}><Input name="name" required minLength={2} maxLength={60} defaultValue={name} placeholder={t("e.g. Mechanical systems")} /></Field>
+              <Field label={t("Description")}><Textarea name="description" rows={3} maxLength={180} defaultValue={description ?? ""} placeholder={t("What belongs in this collection?")} /></Field>
+              <CustomSelect label={t("Color")} value={tone} onChange={setTone} options={[{ value: "violet", label: t("Deep pine") }, { value: "coral", label: t("Warm coral") }, { value: "acid", label: t("Marigold") }, { value: "blue", label: t("Blueprint blue") }]} />
               {error && <FieldError>{error}</FieldError>}
-              <Button type="submit" disabled={pending}>{pending ? "Saving…" : "Save changes"}</Button>
+              <Button type="submit" disabled={pending}>{pending ? t("Saving…") : t("Save changes")}</Button>
             </form>
           </section>
         </div>

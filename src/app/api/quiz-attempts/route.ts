@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { auth } from "@/auth";
 import { parseStoredAnnotation } from "@/lib/annotations";
+import { requestTranslator } from "@/lib/i18n-shared";
 import { prisma } from "@/lib/prisma";
 
 const attemptSchema = z.object({
@@ -11,12 +12,13 @@ const attemptSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const t = requestTranslator(request);
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: t("Unauthorized") }, { status: 401 });
   const parsed = attemptSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Invalid quiz attempt." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: t("Invalid quiz attempt.") }, { status: 400 });
   const figure = await prisma.figure.findFirst({ where: { id: parsed.data.figureId, OR: [{ isPublic: true }, { ownerId: session.user.id }] }, select: { id: true, annotationJson: true } });
-  if (!figure) return NextResponse.json({ error: "Figure not found." }, { status: 404 });
+  if (!figure) return NextResponse.json({ error: t("Figure not found.") }, { status: 404 });
   const validParts = new Set(parseStoredAnnotation(figure.annotationJson).parts.map((part) => part.id));
   // One answer per part: QuizAnswer keys on (attemptId, partId), so a duplicate
   // partId in the payload would otherwise fail the whole attempt.

@@ -4,10 +4,12 @@ import { RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
 
-import { FigureBrand } from "@/components/product-shell";
+import { FigureBrand } from "@/components/figure-brand";
 import { Button } from "@/components/ui";
+import { useI18n } from "@/components/i18n-provider";
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const { t } = useI18n();
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -18,21 +20,21 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
         <FigureBrand compact />
       </header>
       <section className="grid min-h-[calc(100vh-80px)] max-w-[640px] content-center place-content-center">
-        <p className="eyebrow mb-3">Something broke</p>
+        <p className="eyebrow mb-3">{t("Something broke")}</p>
         <h1 className="m-0 font-display text-[clamp(40px,5vw,62px)] font-[520] leading-[1.02] tracking-[-0.015em]">
-          This view hit an unexpected error.
+          {t("This view hit an unexpected error.")}
         </h1>
         <span className="mt-[14px] block text-lead leading-[1.6] text-muted">
-          The issue has been logged. You can retry, or head back to a stable page.
+          {t("The issue has been logged. You can retry, or head back to a stable page.")}
           {error.digest ? ` Reference ${error.digest}.` : ""}
         </span>
         <div className="mt-[28px] flex flex-wrap gap-[10px]">
           <Button size="lg" onClick={() => reset()}>
             <RotateCcw size={17} />
-            Try again
+            {t("Try again")}
           </Button>
           <Button asChild variant="outline" size="lg">
-            <Link href="/discover">Browse public figures</Link>
+            <Link href="/discover">{t("Browse public figures")}</Link>
           </Button>
         </div>
       </section>

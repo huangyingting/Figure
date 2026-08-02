@@ -590,15 +590,15 @@ export function DiagramStudio({
             )}
             {signedOut && (
               <p className="mx-1 mt-[11px] text-ui leading-[1.55] text-muted">
-                You’re browsing as a guest — the sample figure below is fully interactive.{" "}
-                <Link className="font-bold text-pine-dark" href="/register">Create a free account</Link> to generate your
-                own with 12 included credits.
+                {t("You’re browsing as a guest — the sample figure below is fully interactive.")}{" "}
+                <Link className="font-bold text-pine-dark" href="/register">{t("Create a free account")}</Link>{" "}
+                {t("to generate your own with 12 included credits.")}
               </p>
             )}
             {session?.user && !canGenerate && status !== null && (
               <p className="mx-1 mt-[11px] text-ui leading-[1.55] text-muted">
-                Add Azure credentials to <code className="font-display text-pine-dark">.env.local</code> to enable live generation.
-                The curated sample below remains fully interactive.
+                {t("Add Azure credentials to")} <code className="font-display text-pine-dark">.env.local</code>{" "}
+                {t("to enable live generation. The curated sample below remains fully interactive.")}
               </p>
             )}
           </div>

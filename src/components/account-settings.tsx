@@ -5,8 +5,10 @@ import { useSession } from "next-auth/react";
 import { useState } from "react";
 
 import { Button, Card, Field, FieldError, FieldSuccess, Input } from "@/components/ui";
+import { useI18n } from "@/components/i18n-provider";
 
 export function AccountSettings({ name, email, hasPassword }: { name: string; email: string; hasPassword: boolean }) {
+  const { t } = useI18n();
   const router = useRouter();
   const { update: updateSession } = useSession();
   const [profileState, setProfileState] = useState<{ pending: boolean; message: string | null; error: boolean }>({ pending: false, message: null, error: false });
@@ -22,10 +24,10 @@ export function AccountSettings({ name, email, hasPassword }: { name: string; em
     if (response.ok) {
       await updateSession();
       router.refresh();
-      setProfileState({ pending: false, message: "Profile updated.", error: false });
+      setProfileState({ pending: false, message: t("Profile updated."), error: false });
     } else {
       const body = (await response.json().catch(() => ({}))) as { error?: string };
-      setProfileState({ pending: false, message: body.error || "Could not update profile.", error: true });
+      setProfileState({ pending: false, message: t(body.error || "Could not update profile."), error: true });
     }
   }
 
@@ -40,39 +42,39 @@ export function AccountSettings({ name, email, hasPassword }: { name: string; em
       }),
     });
     if (response.ok) {
-      setPasswordState({ pending: false, message: "Password updated.", error: false });
+      setPasswordState({ pending: false, message: t("Password updated."), error: false });
       (document.getElementById("password-form") as HTMLFormElement | null)?.reset();
     } else {
       const body = (await response.json().catch(() => ({}))) as { error?: string };
-      setPasswordState({ pending: false, message: body.error || "Could not update password.", error: true });
+      setPasswordState({ pending: false, message: t(body.error || "Could not update password."), error: true });
     }
   }
 
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
       <Card className="rounded-2xl border-line-dark p-[26px] shadow-none">
-        <h2 className="m-0 font-display text-[20px] tracking-[-0.015em]">Profile</h2>
-        <p className="mt-[6px] mb-5 text-micro leading-[1.5] text-muted">Your name appears on the figures you publish.</p>
+        <h2 className="m-0 font-display text-[20px] tracking-[-0.015em]">{t("Profile")}</h2>
+        <p className="mt-[6px] mb-5 text-micro leading-[1.5] text-muted">{t("Your name appears on the figures you publish.")}</p>
         <form action={saveProfile} className="grid gap-[13px]">
-          <Field label="Name"><Input name="name" required minLength={2} maxLength={60} defaultValue={name} /></Field>
-          <Field label="Email"><Input value={email} disabled aria-label="Email (read-only)" /></Field>
+          <Field label={t("Name")}><Input name="name" required minLength={2} maxLength={60} defaultValue={name} /></Field>
+          <Field label={t("Email")}><Input value={email} disabled aria-label={t("Email (read-only)")} /></Field>
           {profileState.message && (profileState.error
             ? <FieldError>{profileState.message}</FieldError>
             : <FieldSuccess>{profileState.message}</FieldSuccess>)}
-          <Button disabled={profileState.pending}>{profileState.pending ? "Saving…" : "Save profile"}</Button>
+          <Button disabled={profileState.pending}>{profileState.pending ? t("Saving…") : t("Save profile")}</Button>
         </form>
       </Card>
 
       <Card className="rounded-2xl border-line-dark p-[26px] shadow-none">
-        <h2 className="m-0 font-display text-[20px] tracking-[-0.015em]">{hasPassword ? "Change password" : "Set a password"}</h2>
-        <p className="mt-[6px] mb-5 text-micro leading-[1.5] text-muted">{hasPassword ? "Use at least 8 characters." : "Add a password so you can sign in with email as well."}</p>
+        <h2 className="m-0 font-display text-[20px] tracking-[-0.015em]">{hasPassword ? t("Change password") : t("Set a password")}</h2>
+        <p className="mt-[6px] mb-5 text-micro leading-[1.5] text-muted">{hasPassword ? t("Use at least 8 characters.") : t("Add a password so you can sign in with email as well.")}</p>
         <form action={savePassword} id="password-form" className="grid gap-[13px]">
-          {hasPassword && <Field label="Current password"><Input name="currentPassword" type="password" autoComplete="current-password" required minLength={1} /></Field>}
-          <Field label="New password"><Input name="newPassword" type="password" autoComplete="new-password" required minLength={8} maxLength={128} placeholder="At least 8 characters" /></Field>
+          {hasPassword && <Field label={t("Current password")}><Input name="currentPassword" type="password" autoComplete="current-password" required minLength={1} /></Field>}
+          <Field label={t("New password")}><Input name="newPassword" type="password" autoComplete="new-password" required minLength={8} maxLength={128} placeholder={t("At least 8 characters")} /></Field>
           {passwordState.message && (passwordState.error
             ? <FieldError>{passwordState.message}</FieldError>
             : <FieldSuccess>{passwordState.message}</FieldSuccess>)}
-          <Button disabled={passwordState.pending}>{passwordState.pending ? "Saving…" : hasPassword ? "Update password" : "Set password"}</Button>
+          <Button disabled={passwordState.pending}>{passwordState.pending ? t("Saving…") : hasPassword ? t("Update password") : t("Set password")}</Button>
         </form>
       </Card>
     </div>

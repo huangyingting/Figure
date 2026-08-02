@@ -87,7 +87,7 @@ export function MobileMenu({ account }: { account: MobileMenuAccount | null }) {
                     href="/credits"
                     onClick={() => setOpen(false)}
                   >
-                    <Coins size={16} /><span><strong>{account.credits}</strong> credits</span>
+                    <Coins size={16} /><span><strong>{account.credits}</strong> {t("credits")}</span>
                   </Link>
                   <LanguageSwitcher />
                   <Link className="flex items-center gap-[11px] text-inherit no-underline" href="/account" onClick={() => setOpen(false)}>

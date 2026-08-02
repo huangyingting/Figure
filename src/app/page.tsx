@@ -15,6 +15,7 @@ import { AppHeader } from "@/components/app-header";
 import { FigureCard } from "@/components/figure-card";
 import { Button, EmptyState } from "@/components/ui";
 import { prisma } from "@/lib/prisma";
+import { getTranslator } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ const promptIdeas = [
 ];
 
 export default async function Home() {
-  const session = await auth();
+  const [session, t] = await Promise.all([auth(), getTranslator()]);
   if (session?.user?.id) {
     return (
       <DashboardHome
@@ -33,10 +34,11 @@ export default async function Home() {
         name={session.user.name}
         email={session.user.email}
         credits={session.user.credits}
+        t={t}
       />
     );
   }
-  return <MarketingHome />;
+  return <MarketingHome t={t} />;
 }
 
 /* ------------------------------------------------------------------ *
@@ -84,11 +86,13 @@ async function DashboardHome({
   name,
   email,
   credits,
+  t,
 }: {
   userId: string;
   name?: string | null;
   email?: string | null;
   credits: number;
+  t: (message: string) => string;
 }) {
   const [figureCount, collectionCount, recentFigures, attempts] = await Promise.all([
     prisma.figure.count({ where: { ownerId: userId } }),
@@ -116,11 +120,11 @@ async function DashboardHome({
       <AppHeader user={{ name, email, credits }} />
       <main className="frame min-h-[60vh] pt-10 pb-16">
         <p className="eyebrow m-0 mb-[10px]">
-          <Sparkles size={14} /> YOUR STUDIO
+          <Sparkles size={14} /> {t("YOUR STUDIO")}
         </p>
         <h1 className="m-0 mb-7 font-display text-[clamp(32px,3.4vw,46px)] font-[560] leading-[1.08] tracking-[-0.015em]">
-          Welcome back{firstName ? `, ${firstName}` : ""}.{" "}
-          <em className="not-italic text-pine-dark">What will you explain today?</em>
+          {t("Welcome back")}{firstName ? `, ${firstName}` : ""}.{" "}
+          <em className="not-italic text-pine-dark">{t("What will you explain today?")}</em>
         </h1>
 
         <form
@@ -132,48 +136,48 @@ async function DashboardHome({
             <input
               name="subject"
               maxLength={240}
-              aria-label="Topic to explain"
-              placeholder="e.g. Inside a mechanical watch"
+              aria-label={t("Topic to explain")}
+              placeholder={t("e.g. Inside a mechanical watch")}
               className="w-full border-0 bg-transparent font-display text-[clamp(18px,2.1vw,24px)] font-[520] tracking-[-0.01em] text-ink outline-none placeholder:text-muted-2"
             />
             <Button type="submit" size="lg" className="col-span-2 sm:col-span-1">
-              Generate <ArrowRight size={17} />
+              {t("Generate")} <ArrowRight size={17} />
             </Button>
           </div>
-          <div className="flex flex-wrap items-center gap-[7px] px-[5px] pt-3" aria-label="Example topics">
-            <span className="mr-[3px] text-micro font-bold uppercase text-muted">Try</span>
+          <div className="flex flex-wrap items-center gap-[7px] px-[5px] pt-3" aria-label={t("Example topics")}>
+            <span className="mr-[3px] text-micro font-bold uppercase text-muted">{t("Try")}</span>
             {promptIdeas.map((idea) => (
               <Link
                 key={idea}
-                href={`/studio?subject=${encodeURIComponent(idea)}`}
+                href={`/studio?subject=${encodeURIComponent(t(idea))}`}
                 className="min-h-[34px] content-center rounded-full border border-line bg-paper px-3 py-1 text-meta text-muted no-underline hover:border-pine hover:text-pine"
               >
-                {idea}
+                {t(idea)}
               </Link>
             ))}
           </div>
         </form>
 
         <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatTile href="/credits" icon={Coins} label="Credits left" value={String(credits)} hint="1 credit per figure" />
-          <StatTile href="/library" icon={Shapes} label="Figures created" value={String(figureCount)} hint="Open library" />
-          <StatTile href="/collections" icon={FolderHeart} label="Collections" value={String(collectionCount)} hint="Open collections" />
+          <StatTile href="/credits" icon={Coins} label={t("Credits left")} value={String(credits)} hint={t("1 credit per figure")} />
+          <StatTile href="/library" icon={Shapes} label={t("Figures created")} value={String(figureCount)} hint={t("Open library")} />
+          <StatTile href="/collections" icon={FolderHeart} label={t("Collections")} value={String(collectionCount)} hint={t("Open collections")} />
           <StatTile
             href="/quiz"
             icon={BookOpenCheck}
-            label="Recent mastery"
+            label={t("Recent mastery")}
             value={mastery === null ? "—" : `${mastery}%`}
-            hint={mastery === null ? "Take a quiz" : "Open quiz lab"}
+            hint={mastery === null ? t("Take a quiz") : t("Open quiz lab")}
             meter={mastery === null ? undefined : mastery}
           />
         </div>
 
         <section className="mt-11">
           <header className="mb-4 flex items-baseline justify-between gap-4">
-            <h2 className="m-0 font-display text-[26px] font-[560] tracking-[-0.015em]">Recent figures</h2>
+            <h2 className="m-0 font-display text-[26px] font-[560] tracking-[-0.015em]">{t("Recent figures")}</h2>
             {figureCount > 0 && (
               <Link href="/library" className="text-meta font-bold text-pine-dark no-underline hover:underline">
-                View all →
+                {t("View all")} →
               </Link>
             )}
           </header>
@@ -186,8 +190,8 @@ async function DashboardHome({
           ) : (
             <EmptyState
               icon="✦"
-              title="Your first figure is one prompt away."
-              description="Type a topic above — Figure plans the parts, renders the image, and grounds every callout to pixels."
+              title={t("Your first figure is one prompt away.")}
+              description={t("Type a topic above — Figure plans the parts, renders the image, and grounds every callout to pixels.")}
             />
           )}
         </section>
@@ -219,46 +223,45 @@ const steps = [
   },
 ];
 
-function MarketingHome() {
+function MarketingHome({ t }: { t: (message: string) => string }) {
   return (
     <div className="min-h-screen bg-shell">
       <AppHeader user={null} />
       <main className="overflow-hidden">
         <section className="frame pt-16 pb-10 text-center">
           <p className="eyebrow justify-center">
-            <Sparkles size={14} /> THE VISUAL LEARNING STUDIO
+            <Sparkles size={14} /> {t("THE VISUAL LEARNING STUDIO")}
           </p>
           <h1 className="mx-auto mt-5 mb-6 max-w-[900px] font-display text-[clamp(52px,7.2vw,96px)] font-[560] leading-[1.02] tracking-[-0.02em]">
-            Don’t just read it.
+            {t("Don’t just read it.")}
             <br />
-            <em className="highlight-sweep">See how it works.</em>
+            <em className="highlight-sweep">{t("See how it works.")}</em>
           </h1>
           <p className="mx-auto m-0 max-w-[640px] text-[18px] leading-[1.65] text-muted">
-            Figure turns any topic into a beautifully annotated diagram — then helps you
-            collect, revisit, and quiz what you’ve seen.
+            {t("Figure turns any topic into a beautifully annotated diagram — then helps you collect, revisit, and quiz what you’ve seen.")}
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg" className="px-8 shadow-[0_14px_32px_rgb(18_74_56/25%)]">
               <Link href="/register">
-                Start free with 12 credits <ArrowRight size={17} />
+                {t("Start free with 12 credits")} <ArrowRight size={17} />
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg">
-              <Link href="/studio">Watch the live demo</Link>
+              <Link href="/studio">{t("Watch the live demo")}</Link>
             </Button>
           </div>
           <small className="mt-4 block text-meta text-muted-2">
-            No card required · Browse the <Link href="/discover" className="font-semibold text-pine-dark">gallery</Link> as a guest
+            {t("No card required")} · {t("Browse the")} <Link href="/discover" className="font-semibold text-pine-dark">{t("gallery")}</Link> {t("as a guest")}
           </small>
         </section>
 
-        <section className="frame pb-16" aria-label="Annotated figure example">
+        <section className="frame pb-16" aria-label={t("Annotated figure example")}>
           <div className="relative mx-auto w-[min(880px,100%)]">
             <div className="rotate-[0.8deg] overflow-hidden rounded-[24px] border border-line-dark bg-paper p-[14px] shadow-[0_40px_100px_rgb(96_82_46/16%)]">
               <Image
                 className="block w-full rounded-[14px] bg-[#eef0e6]"
                 src="/demo-pump.png"
-                alt="Annotated centrifugal pump cutaway"
+                alt={t("Annotated centrifugal pump cutaway")}
                 width={1536}
                 height={1024}
                 priority
@@ -270,15 +273,15 @@ function MarketingHome() {
             <div className="absolute -left-2 bottom-[70px] z-[2] hidden items-center gap-[10px] rounded-2xl border border-line bg-paper/95 px-4 py-3 shadow-[0_14px_35px_rgb(60_52_30/14%)] backdrop-blur-md sm:flex">
               <i className="grid h-8 w-8 place-items-center rounded-[10px] bg-pine font-display text-micro font-bold text-white">02</i>
               <span className="grid">
-                <strong className="text-ui">Impeller</strong>
-                <small className="text-micro text-muted">Turns motion into fluid pressure</small>
+                <strong className="text-ui">{t("Impeller")}</strong>
+                <small className="text-micro text-muted">{t("Turns motion into fluid pressure")}</small>
               </span>
             </div>
             <div className="absolute -right-2 top-[64px] z-[2] hidden items-center gap-[10px] rounded-2xl border border-line bg-paper/95 px-4 py-3 shadow-[0_14px_35px_rgb(60_52_30/14%)] backdrop-blur-md sm:flex">
               <i className="grid h-8 w-8 place-items-center rounded-[10px] bg-marigold text-[13px] font-extrabold not-italic text-ink">✓</i>
               <span className="grid">
-                <strong className="text-ui">Mastered</strong>
-                <small className="text-micro text-muted">7 of 7 components</small>
+                <strong className="text-ui">{t("Mastered")}</strong>
+                <small className="text-micro text-muted">{t("7 of 7 components")}</small>
               </span>
             </div>
           </div>
@@ -286,7 +289,7 @@ function MarketingHome() {
 
         <section className="border-t border-line bg-paper py-16">
           <div className="frame">
-            <p className="eyebrow m-0 mb-9">ONE FIGURE, THREE WAYS TO LEARN</p>
+            <p className="eyebrow m-0 mb-9">{t("ONE FIGURE, THREE WAYS TO LEARN")}</p>
             <div className="grid gap-10 md:grid-cols-3 md:gap-8">
               {steps.map((step) => (
                 <article key={step.number} className="border-t-2 border-ink pt-5">
@@ -294,8 +297,8 @@ function MarketingHome() {
                     {step.number}
                     <span className="ml-1 inline-block h-[10px] w-[10px] rounded-full bg-marigold" aria-hidden="true" />
                   </p>
-                  <h2 className="mt-4 mb-3 font-display text-[27px] font-[560] tracking-[-0.015em]">{step.title}</h2>
-                  <p className="m-0 text-body leading-[1.7] text-muted">{step.copy}</p>
+                  <h2 className="mt-4 mb-3 font-display text-[27px] font-[560] tracking-[-0.015em]">{t(step.title)}</h2>
+                  <p className="m-0 text-body leading-[1.7] text-muted">{t(step.copy)}</p>
                 </article>
               ))}
             </div>
@@ -304,15 +307,15 @@ function MarketingHome() {
 
         <section className="frame py-16 text-center">
           <h2 className="mx-auto m-0 max-w-[620px] font-display text-[clamp(32px,3.6vw,46px)] font-[560] leading-[1.1] tracking-[-0.015em]">
-            Start your <em className="highlight-sweep">visual atlas</em> today.
+            {t("Start your")} <em className="highlight-sweep">{t("visual atlas")}</em> {t("today.")}
           </h2>
           <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg" className="px-8">
-              <Link href="/register">Create your free account</Link>
+              <Link href="/register">{t("Create your free account")}</Link>
             </Button>
           </div>
           <small className="mt-4 block text-meta text-muted-2">
-            Already have one? <Link href="/signin" className="font-semibold text-pine-dark">Sign in</Link>
+            {t("Already have one?")} <Link href="/signin" className="font-semibold text-pine-dark">{t("Sign in")}</Link>
           </small>
         </section>
       </main>

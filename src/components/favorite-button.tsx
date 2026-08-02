@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { cn } from "@/components/ui";
+import { useI18n } from "@/components/i18n-provider";
 
 export function FavoriteButton({ figureId, initialFavorited }: { figureId: string; initialFavorited: boolean }) {
+  const { t } = useI18n();
   const router = useRouter();
   const [favorited, setFavorited] = useState(initialFavorited);
   const [pending, setPending] = useState(false);
@@ -34,12 +36,12 @@ export function FavoriteButton({ figureId, initialFavorited }: { figureId: strin
       )}
       data-favorited={favorited}
       aria-pressed={favorited}
-      aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
+      aria-label={favorited ? t("Remove from favorites") : t("Add to favorites")}
       onClick={(event) => { event.preventDefault(); event.stopPropagation(); void toggle(); }}
       disabled={pending}
     >
       <Heart size={16} fill={favorited ? "currentColor" : "none"} />
-      {favorited ? "Favorited" : "Favorite"}
+      {favorited ? t("Favorited") : t("Favorite")}
     </button>
   );
 }

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { requestTranslator } from "@/lib/i18n-shared";
 import { prisma } from "@/lib/prisma";
 
 const profileSchema = z.object({
@@ -15,27 +16,29 @@ const passwordSchema = z.object({
 });
 
 export async function PATCH(request: Request) {
+  const t = requestTranslator(request);
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: t("Unauthorized") }, { status: 401 });
   const parsed = profileSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid profile." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: t("Invalid profile.") }, { status: 400 });
   await prisma.user.update({ where: { id: session.user.id }, data: { name: parsed.data.name } });
   return NextResponse.json({ ok: true });
 }
 
 export async function PUT(request: Request) {
+  const t = requestTranslator(request);
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: t("Unauthorized") }, { status: 401 });
   const parsed = passwordSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid password." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: t("Invalid password.") }, { status: 400 });
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { passwordHash: true } });
-  if (!user) return NextResponse.json({ error: "Account not found." }, { status: 404 });
+  if (!user) return NextResponse.json({ error: t("Account not found.") }, { status: 404 });
 
   // Users with an existing password must verify it; OAuth-only users set one for the first time.
   if (user.passwordHash) {
     if (!parsed.data.currentPassword || !(await compare(parsed.data.currentPassword, user.passwordHash))) {
-      return NextResponse.json({ error: "Your current password is incorrect." }, { status: 403 });
+      return NextResponse.json({ error: t("Your current password is incorrect.") }, { status: 403 });
     }
   }
 

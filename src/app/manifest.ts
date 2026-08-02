@@ -1,10 +1,15 @@
 import type { MetadataRoute } from "next";
 
-export default function manifest(): MetadataRoute.Manifest {
+import { getLocale } from "@/lib/i18n";
+
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const locale = await getLocale();
   return {
-    name: "Figure · Visual learning studio",
+    name: locale === "zh-CN" ? "Figure · 可视化学习工作室" : "Figure · Visual learning studio",
     short_name: "Figure",
-    description: "Create, collect, and master AI-generated annotated figures.",
+    description: locale === "zh-CN"
+      ? "创建、收藏并掌握 AI 生成的标注图解。"
+      : "Create, collect, and master AI-generated annotated figures.",
     start_url: "/",
     display: "standalone",
     background_color: "#f6f1e4",

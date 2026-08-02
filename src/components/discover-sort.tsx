@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { CustomSelect } from "@/components/custom-select";
+import { useI18n } from "@/components/i18n-provider";
 
 const options = [
   { value: "popular", label: "Most explored" },
@@ -11,6 +12,7 @@ const options = [
 ];
 
 export function DiscoverSort({ value }: { value: string }) {
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -22,5 +24,5 @@ export function DiscoverSort({ value }: { value: string }) {
     router.push(query ? `/discover?${query}` : "/discover");
   }
 
-  return <CustomSelect compact label="Sort by" value={value} onChange={change} options={options} />;
+  return <CustomSelect compact label={t("Sort by")} value={value} onChange={change} options={options.map((option) => ({ ...option, label: t(option.label) }))} />;
 }

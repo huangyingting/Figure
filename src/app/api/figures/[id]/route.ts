@@ -3,36 +3,41 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { parseStoredAnnotation } from "@/lib/annotations";
 import { AnnotationUpdateSchema, type DiagramResult } from "@/lib/contracts";
+import { localizedDemoResult } from "@/lib/demo-data";
+import { requestLocale, requestTranslator } from "@/lib/i18n-shared";
 import { prisma } from "@/lib/prisma";
 import { pruneRevisions } from "@/lib/revisions";
 import { getFigureStorage } from "@/lib/storage";
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  const t = requestTranslator(request);
   const { id } = await context.params;
   const session = await auth();
   const figure = await prisma.figure.findUnique({ where: { id } });
-  if (!figure || (!figure.isPublic && figure.ownerId !== session?.user?.id)) return NextResponse.json({ error: "Figure not found." }, { status: 404 });
+  if (!figure || (!figure.isPublic && figure.ownerId !== session?.user?.id)) return NextResponse.json({ error: t("Figure not found.") }, { status: 404 });
+  const demo = localizedDemoResult(requestLocale(request));
   const result: DiagramResult = {
     id: figure.id,
     image: { src: `/api/figures/${id}/image`, mimeType: figure.imageMimeType, width: figure.imageWidth, height: figure.imageHeight, revisedPrompt: null },
-    annotation: parseStoredAnnotation(figure.annotationJson),
+    annotation: figure.id === demo.id ? demo.annotation : parseStoredAnnotation(figure.annotationJson),
     provenance: { source: "azure-generated", imageModel: figure.imageModel, visionModel: figure.visionModel, generatedAt: figure.createdAt.toISOString(), reviewRequired: true },
   };
   return NextResponse.json(result);
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  const t = requestTranslator(request);
   const { id } = await context.params;
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: t("Unauthorized") }, { status: 401 });
   const body = await request.json().catch(() => null) as { isPublic?: unknown; title?: unknown; annotation?: unknown } | null;
   const existing = await prisma.figure.findUnique({ where: { id }, select: { ownerId: true } });
-  if (!existing || existing.ownerId !== session.user.id) return NextResponse.json({ error: "Figure not found." }, { status: 404 });
+  if (!existing || existing.ownerId !== session.user.id) return NextResponse.json({ error: t("Figure not found.") }, { status: 404 });
 
   let annotationUpdate: { annotationJson: string; title: string; summary: string } | undefined;
   if (body?.annotation !== undefined) {
     const parsed = AnnotationUpdateSchema.safeParse(body.annotation);
-    if (!parsed.success) return NextResponse.json({ error: "Invalid annotation payload." }, { status: 400 });
+    if (!parsed.success) return NextResponse.json({ error: t("Invalid annotation payload.") }, { status: 400 });
     annotationUpdate = {
       annotationJson: JSON.stringify(parsed.data),
       title: parsed.data.title.slice(0, 160),
@@ -60,12 +65,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   return NextResponse.json({ figure });
 }
 
-export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+  const t = requestTranslator(request);
   const { id } = await context.params;
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: t("Unauthorized") }, { status: 401 });
   const existing = await prisma.figure.findUnique({ where: { id }, select: { ownerId: true, imageKey: true } });
-  if (!existing || existing.ownerId !== session.user.id) return NextResponse.json({ error: "Figure not found." }, { status: 404 });
+  if (!existing || existing.ownerId !== session.user.id) return NextResponse.json({ error: t("Figure not found.") }, { status: 404 });
   await prisma.figure.delete({ where: { id } });
   const stillReferenced = await prisma.figure.count({ where: { imageKey: existing.imageKey } });
   if (stillReferenced === 0) {

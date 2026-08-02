@@ -15,4 +15,8 @@ describe("formatGeneratedDate", () => {
   it("uses UTC so server and client time zones cannot cross a date boundary", () => {
     expect(formatGeneratedDate("2026-08-01T00:30:00.000Z")).toBe("8/1/2026");
   });
+
+  it("formats dates for Simplified Chinese UI", () => {
+    expect(formatGeneratedDate("2026-08-02T00:00:00.000Z", "zh-CN")).toBe("2026年8月2日");
+  });
 });
