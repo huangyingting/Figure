@@ -20,18 +20,37 @@ All menu-style selects use the shared accessible custom listbox component; the a
 npm install
 cp .env.example .env.local
 npm run db:generate
-npm run db:push
+npm run db:deploy
 npm run db:seed
 npm run dev
 ```
 
 The seed adds a public centrifugal-pump lesson and the local development account `demo@figure.local` / `figure-demo`. Seed credentials are for local development only.
+If `.env.local` already exists, merge the required database and authentication settings instead of replacing provider credentials. Prisma commands and the seed load the same environment files as Next.js.
 
 Run the full verification gate with:
 
 ```bash
 npm run check
 ```
+
+Browser verification runs against a production build with a disposable, migrated SQLite database and isolated image storage under `.e2e/`:
+
+```bash
+npx playwright install chromium
+npm run build
+npm run test:e2e
+```
+
+Set `PLAYWRIGHT_CHANNEL=chrome` to use an installed Google Chrome instead. The desktop and mobile scenarios cover public/private navigation, Chinese rendering, registration, account changes, generation, editing and recovery, revisions, collections, favorites, quizzes, credit refunds, and relational constraints. Only the external AI provider is replaced by a deterministic local fixture; browser tests never spend Azure credits or modify the application's configured database.
+
+## Domain and persistence invariants
+
+The glossary in [CONTEXT.md](CONTEXT.md) defines the learning model. Images and annotations are deliberately separate: an annotation is a small, atomic lesson document, while revisions preserve its previous states. Component identifiers are unique and stable across copy and placement edits. Figure titles and summaries stay synchronized with their annotation.
+
+Collection membership and favorites do not grant access to a figure that its owner later makes private. Quiz answers reference the same learner and figure as their parent attempt through a compound foreign key. Quizzes use up to seven visible components; scores are computed from component IDs on the server, independently of translated names.
+
+Account creation and its welcome ledger entry commit together. Generation charges and refunds have unique operation identities, and a refund requires a matching charge. Storage errors are distinguished from missing images; visibility-aware image responses are not cached across publication changes.
 
 ## Authentication
 
@@ -88,4 +107,20 @@ The server supports `gpt-image-2` and `MAI-Image-2.5` image deployments plus a v
 
 See `.env.example` for the complete set of Azure OpenAI, Microsoft Foundry, timeout, image-quality, authentication, database, and object-storage variables.
 
+`AZURE_AUTH_MODE=auto` is the default: keys are used first, with Microsoft Entra ID fallback only when the resource explicitly disables key authentication. Use `AZURE_AUTH_MODE=entra` for keyless deployments or `api-key` to disable fallback. Entra authentication uses `DefaultAzureCredential`; assign the deployed identity the required model-access role in the resource's tenant. For local development, `az login` and `AZURE_TOKEN_CREDENTIALS=AzureCliCredential` can select the CLI identity explicitly. A token from another tenant will not work, even when an endpoint and deployment are configured. Configuration status does not assert live provider connectivity.
+
 The generated image is intentionally label-free. The vision pass returns normalized anchors and boxes independently, keeping visual pixels, annotation copy, review status, and quiz content editable and auditable.
+
+### Visual styles
+
+New figures default to **Isometric**: an orthographic 3D editorial illustration with sculpted forms, crisp silhouettes, and a restrained teal/sage/coral palette. The studio also offers **Realistic** and **Blueprint** treatments. Style is independent of structural format, so an isometric figure can still be a cutaway, anatomy, exploded assembly, or construction diagram.
+
+The selected `visualStyle` is carried through planning, image generation, saved metadata, duplication, and JSON export. Choosing another style affects the next generation, not the pixels of an existing figure. Historical images keep their original realistic treatment; changing metadata or restoring annotations never pretends to re-render an image.
+
+## Production deployment
+
+Set a random `AUTH_SECRET`, the public HTTPS `AUTH_URL`, `DATABASE_URL`, and provider/storage credentials before building. Generate a secret with `openssl rand -base64 32`; do not use the template value. Apply committed migrations with `npm run db:deploy`, then run `npm run build` and `npm start`. Do not run the demo seed in production; the command rejects `NODE_ENV=production`.
+
+SQLite and local storage require persistent volumes and a single application instance. The in-memory rate limiter is also per-process; multi-instance deployments need a shared limiter and a database/storage deployment designed for that topology. Back up the database and image storage together. Databases previously created with `db:push` need an operator-reviewed migration baseline before `db:deploy`; do not reset an existing production database.
+
+The automated gate does not certify external credentials, OAuth callback registration, cloud permissions, backups, or deployment capacity. Verify live planning, rendering, and spatial grounding against the intended Azure resource, plus each configured social provider, before release. Generation errors include a request ID; `CREDIT_REFUND_FAILED` means an administrator must reconcile that charge after restoring database access.
