@@ -16,9 +16,10 @@ export async function GET(request: Request) {
   const t = requestTranslator(request);
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: t("Unauthorized") }, { status: 401 });
+  const visibleFigures = { figure: { OR: [{ isPublic: true }, { ownerId: session.user.id }] } };
   const collections = await prisma.collection.findMany({
     where: { ownerId: session.user.id }, orderBy: { updatedAt: "desc" },
-    include: { figures: { take: 4, orderBy: { addedAt: "desc" }, include: { figure: { select: { id: true, title: true } } } }, _count: { select: { figures: true } } },
+    include: { figures: { where: visibleFigures, take: 4, orderBy: { addedAt: "desc" }, include: { figure: { select: { id: true, title: true } } } }, _count: { select: { figures: { where: visibleFigures } } } },
   });
   return NextResponse.json({ collections });
 }

@@ -34,7 +34,10 @@ export class AzureFigureStorage implements FigureStorage {
     try {
       const response = await (await this.container()).getBlockBlobClient(key).downloadToBuffer();
       return response;
-    } catch { return null; }
+    } catch (error) {
+      if (error && typeof error === "object" && "statusCode" in error && error.statusCode === 404) return null;
+      throw error;
+    }
   }
 
   async delete(key: string) {

@@ -19,9 +19,16 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     prisma.figure.findFirst({ where: { id: parsed.data.figureId, OR: [{ isPublic: true }, { ownerId: session.user.id }] }, select: { id: true } }),
   ]);
   if (!collection || !figure) return NextResponse.json({ error: t("Collection or figure not found.") }, { status: 404 });
-  await prisma.collectionFigure.upsert({
-    where: { collectionId_figureId: { collectionId: id, figureId: figure.id } },
-    create: { collectionId: id, figureId: figure.id }, update: { addedAt: new Date() },
+  await prisma.$transaction(async (tx) => {
+    const now = new Date();
+    await tx.collectionFigure.upsert({
+      where: { collectionId_figureId: { collectionId: id, figureId: figure.id } },
+      create: { collectionId: id, figureId: figure.id }, update: { addedAt: now },
+    });
+    await tx.collection.update({
+      where: { id, ownerId: session.user.id },
+      data: { updatedAt: now },
+    });
   });
   return NextResponse.json({ ok: true });
 }
@@ -35,6 +42,14 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
   if (!parsed.success) return NextResponse.json({ error: t("Invalid figure.") }, { status: 400 });
   const collection = await prisma.collection.findFirst({ where: { id, ownerId: session.user.id }, select: { id: true } });
   if (!collection) return NextResponse.json({ error: t("Collection not found.") }, { status: 404 });
-  await prisma.collectionFigure.deleteMany({ where: { collectionId: id, figureId: parsed.data.figureId } });
+  await prisma.$transaction(async (tx) => {
+    const { count } = await tx.collectionFigure.deleteMany({ where: { collectionId: id, figureId: parsed.data.figureId } });
+    if (count > 0) {
+      await tx.collection.update({
+        where: { id, ownerId: session.user.id },
+        data: { updatedAt: new Date() },
+      });
+    }
+  });
   return NextResponse.json({ ok: true });
 }

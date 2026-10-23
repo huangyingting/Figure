@@ -23,8 +23,9 @@ const demoRequest: GenerateDiagramRequest = {
   diagramType: "cutaway",
   audience: "curious adult learners and engineering students",
   imageModel: "gpt-image-2",
+  visualStyle: "isometric",
   visualDirection:
-    "Create a photorealistic industrial product cutaway of one physically plausible centrifugal pump. Use a clean three-quarter view from slightly above: the large inlet flange faces left, the discharge flange rises vertically, the impeller sits visibly inside the volute, and the shaft, mechanical seal, and bearing housing extend to the right. Use a teal cast-iron casing with a precise machined section removed, a copper-orange impeller, a polished steel shaft, a brass-toned seal, and a dark graphite bearing housing. Use soft studio lighting and deep focus with crisp material detail. Do not include a motor, attached piping, mounting floor, scenery, labels, arrows, text, or a drop shadow.",
+    "Create a stylish isometric cutaway of one physically plausible centrifugal pump. Use a clean orthographic view from slightly above: the large inlet flange faces left, the discharge flange rises vertically, the impeller sits visibly inside the volute, and the shaft, mechanical seal, and bearing housing extend to the right. Use a sculpted teal casing with a precise section removed, a warm coral-orange impeller, a graphite shaft, and subtle sage accents. Preserve crisp component separation and physical relationships. Do not include a motor, attached piping, mounting floor, scenery, labels, arrows, text, or a drop shadow.",
   parts: [
     {
       id: "casing",
@@ -106,6 +107,7 @@ async function main(): Promise<void> {
       visionModel: process.env.AZURE_VISION_DEPLOYMENT || "gpt-5.6-terra",
       generatedAt: new Date().toISOString(),
       reviewRequired: true,
+      visualStyle: demoRequest.visualStyle,
     },
   };
 

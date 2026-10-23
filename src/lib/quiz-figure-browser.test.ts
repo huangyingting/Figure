@@ -30,6 +30,14 @@ describe("quiz figure browser", () => {
       .toEqual({ query: "pump", page: 1 });
   });
 
+  it.each(["2147483648", "999999999999999999999999", "2x", "2.5", "1e3"])(
+    "rejects invalid or database-overflowing page %s",
+    (page) => {
+      expect(normalizeQuizFigureBrowserParams({ q: "pump", page }))
+        .toEqual({ query: "pump", page: 1 });
+    },
+  );
+
   it("searches only public figures for guests and returns bounded pages", async () => {
     figure.findMany.mockResolvedValue(
       Array.from({ length: 9 }, (_, index) => ({

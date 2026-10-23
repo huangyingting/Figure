@@ -8,6 +8,9 @@ let resolved: FigureStorage | null = null;
 
 export function getFigureStorage(): FigureStorage {
   if (resolved) return resolved;
+  if (process.env.FIGURE_STORAGE && !["local", "azure"].includes(process.env.FIGURE_STORAGE)) {
+    throw new Error("FIGURE_STORAGE must be local or azure.");
+  }
   resolved = process.env.FIGURE_STORAGE === "azure"
     ? new AzureFigureStorage()
     : new FilesystemFigureStorage(path.resolve(/* turbopackIgnore: true */ process.env.FIGURE_STORAGE_DIR || ".media"));

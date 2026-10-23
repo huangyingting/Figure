@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { parseStoredAnnotation } from "@/lib/annotations";
+import { AnnotationUpdateSchema } from "@/lib/contracts";
 import { requestLocale, requestTranslator } from "@/lib/i18n-shared";
 import { prisma } from "@/lib/prisma";
 import { getFigureStorage } from "@/lib/storage";
@@ -18,20 +19,29 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   });
   if (!source) return NextResponse.json({ error: t("Figure not found.") }, { status: 404 });
 
+  const suffix = source.ownerId === session.user.id
+    ? locale === "zh-CN" ? "（副本）" : " (copy)"
+    : "";
+  const title = `${source.title.slice(0, 160 - suffix.length)}${suffix}`;
+  const annotation = AnnotationUpdateSchema.safeParse({
+    ...parseStoredAnnotation(source.annotationJson),
+    title,
+  });
+  if (!annotation.success) {
+    return NextResponse.json({ error: t("Invalid annotation payload.") }, { status: 409 });
+  }
+  const annotationJson = JSON.stringify(annotation.data);
+
   // Re-store the bytes under the new owner so the content-addressed key (and the
   // reference-counted delete) stays correct per owner.
   const bytes = await getFigureStorage().get(source.imageKey);
   if (!bytes) return NextResponse.json({ error: t("The source image is unavailable.") }, { status: 409 });
   const stored = await getFigureStorage().put(bytes, source.imageMimeType, session.user.id);
 
-  const annotation = parseStoredAnnotation(source.annotationJson);
-  const annotationJson = JSON.stringify(annotation);
   const copy = await prisma.figure.create({
     data: {
       ownerId: session.user.id,
-      title: source.ownerId === session.user.id
-        ? locale === "zh-CN" ? `${source.title}（副本）` : `${source.title} (copy)`
-        : source.title,
+      title,
       subject: source.subject,
       summary: source.summary,
       imageKey: stored.storageKey,
@@ -42,6 +52,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       visionModel: source.visionModel,
       annotationJson,
       diagramType: source.diagramType,
+      visualStyle: source.visualStyle,
       audience: source.audience,
       isPublic: false,
       revisions: { create: { annotationJson, source: "ai-draft" } },

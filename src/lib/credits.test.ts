@@ -18,10 +18,11 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { consumeGenerationCredit, grantSignupBonus, refundGenerationCredit } from "@/lib/credits";
+import { consumeGenerationCredit, refundGenerationCredit } from "@/lib/credits";
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  tx.creditLedger.findFirst.mockResolvedValue(null);
 });
 
 describe("consumeGenerationCredit", () => {
@@ -51,11 +52,19 @@ describe("consumeGenerationCredit", () => {
     expect(tx.user.findUniqueOrThrow).not.toHaveBeenCalled();
     expect(tx.creditLedger.create).not.toHaveBeenCalled();
   });
+
+  it("does not charge the same generation twice", async () => {
+    tx.creditLedger.findFirst.mockResolvedValue({ id: "debit" });
+    tx.user.findUniqueOrThrow.mockResolvedValue({ credits: 9 });
+    expect(await consumeGenerationCredit("user-1", "req-1")).toBe(9);
+    expect(tx.user.updateMany).not.toHaveBeenCalled();
+    expect(tx.creditLedger.create).not.toHaveBeenCalled();
+  });
 });
 
 describe("refundGenerationCredit", () => {
   it("increments and records a refund when none exists yet", async () => {
-    tx.creditLedger.findFirst.mockResolvedValue(null);
+    tx.creditLedger.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "debit" });
     tx.user.update.mockResolvedValue({ credits: 12 });
     tx.creditLedger.create.mockResolvedValue({});
 
@@ -79,27 +88,10 @@ describe("refundGenerationCredit", () => {
     expect(tx.user.update).not.toHaveBeenCalled();
     expect(tx.creditLedger.create).not.toHaveBeenCalled();
   });
-});
 
-describe("grantSignupBonus", () => {
-  it("records the welcome credits that explain a new account's balance", async () => {
-    tx.creditLedger.findFirst.mockResolvedValue(null);
-    tx.user.findUniqueOrThrow.mockResolvedValue({ credits: 12 });
-    tx.creditLedger.create.mockResolvedValue({});
-
-    await grantSignupBonus("user-1");
-
-    expect(tx.creditLedger.create).toHaveBeenCalledWith({
-      data: { userId: "user-1", amount: 12, balance: 12, reason: "signup_bonus" },
-    });
-  });
-
-  it("is idempotent: an already-recorded bonus is not granted twice", async () => {
-    tx.creditLedger.findFirst.mockResolvedValue({ id: "ledger-1" });
-
-    await grantSignupBonus("user-1");
-
-    expect(tx.user.findUniqueOrThrow).not.toHaveBeenCalled();
+  it("rejects refunds without a matching charge", async () => {
+    await expect(refundGenerationCredit("user-1", "unknown")).rejects.toThrow("matching charge");
+    expect(tx.user.update).not.toHaveBeenCalled();
     expect(tx.creditLedger.create).not.toHaveBeenCalled();
   });
 });

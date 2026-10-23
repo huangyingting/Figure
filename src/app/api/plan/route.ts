@@ -56,9 +56,9 @@ export async function POST(request: Request): Promise<NextResponse> {
         { status: 413 },
       );
     }
-    if (error instanceof ZodError) {
+    if (error instanceof SyntaxError || error instanceof ZodError) {
       return NextResponse.json(
-        { error: zodMessage(error), code: "INVALID_REQUEST", requestId },
+        { error: error instanceof ZodError ? zodMessage(error) : t("Invalid request."), code: "INVALID_REQUEST", requestId },
         { status: 400 },
       );
     }

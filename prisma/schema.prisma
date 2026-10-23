@@ -59,6 +59,7 @@ model Figure {
   annotationJson String
   diagramType    String?
   audience       String?
+  visualStyle    String             @default("realistic")
   isPublic       Boolean            @default(false)
   viewCount      Int                @default(0)
   createdAt      DateTime           @default(now())
@@ -123,6 +124,7 @@ model QuizAttempt {
   figure      Figure       @relation(fields: [figureId], references: [id], onDelete: Cascade)
   answers     QuizAnswer[]
 
+  @@unique([id, userId, figureId])
   @@index([userId, completedAt])
   @@index([figureId])
 }
@@ -138,7 +140,7 @@ model QuizAnswer {
   partId    String
   answer    String
   correct   Boolean
-  attempt   QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  attempt   QuizAttempt @relation(fields: [attemptId, userId, figureId], references: [id, userId, figureId], onDelete: Cascade)
 
   @@id([attemptId, partId])
   @@index([userId, figureId, partId])
@@ -154,6 +156,7 @@ model CreditLedger {
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, reason, referenceId])
   @@index([userId, createdAt])
 }
 

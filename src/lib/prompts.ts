@@ -2,6 +2,7 @@ import type {
   GenerateDiagramRequest,
   PartSpec,
   PlanDiagramRequest,
+  VisualStyle,
 } from "@/lib/contracts";
 
 const diagramTypeLabels = {
@@ -10,6 +11,12 @@ const diagramTypeLabels = {
   exploded: "exploded assembly",
   construction: "construction diagram",
 } as const;
+
+const visualStyleDirections = {
+  isometric: "Create a stylish isometric 3D illustration with an orthographic, equal-axis view. Use sculpted forms, crisp silhouettes, soft material shading within the subject, and a restrained teal, sage, warm coral, and graphite palette. Simplify surfaces without distorting the real component relationships; make the result feel like a polished editorial design object, not a toy.",
+  realistic: "Create a refined, realistic technical illustration with physically plausible materials, proportions, and subtle studio lighting. Favor crisp engineering detail and a clean three-quarter or orthographic view over decorative effects.",
+  blueprint: "Create an elegant blueprint-style technical illustration using precise navy and teal linework, restrained cyan accents, and selective solid fills. Keep the backdrop pure white for transparency, not blue paper. Do not add grids, measurements, text, or decorative drafting marks.",
+} satisfies Record<VisualStyle, string>;
 
 function outputLanguage(locale: "en" | "zh-CN"): string {
   return locale === "zh-CN"
@@ -50,6 +57,8 @@ export function buildPlanSystemPrompt(locale: "en" | "zh-CN" = "en"): string {
 export function buildPlanUserPrompt(input: PlanDiagramRequest): string {
   return [
     `Topic: ${input.subject}`,
+    `Selected visual style: ${input.visualStyle}. ${visualStyleDirections[input.visualStyle]}`,
+    "Compose the visual direction for this selected style; it is independent of the structural diagram format.",
     "Infer and return the best diagramType and audience from the topic itself.",
     input.locale === "zh-CN"
       ? "返回简体中文标题、推断出的格式与受众、实用的视觉方向，以及供图像生成和空间定位阶段使用的简体中文组件清单。"
@@ -62,9 +71,11 @@ export function buildImagePrompt(input: GenerateDiagramRequest): string {
     `Create a precise ${diagramTypeLabels[input.diagramType]} of: ${input.subject}.`,
     `Audience: ${input.audience}.`,
     input.visualDirection ? `Planned visual direction: ${input.visualDirection}` : "",
+    `Selected visual style: ${input.visualStyle}. ${visualStyleDirections[input.visualStyle]}`,
+    "Honor the selected visual style over any conflicting planned aesthetic, while preserving the requested structure and component inventory.",
     "The image will receive a separate interactive SVG annotation layer, so make spatial identification unambiguous.",
     "Isolate the subject on a perfectly uniform pure white (#FFFFFF) backdrop with no scene, floor, horizon, border, vignette, background texture, or cast shadow. Keep the subject separated from every image edge; the backdrop will be converted to a transparent alpha channel after generation.",
-    "Show every requested component clearly when physically possible. Use a clean three-quarter or orthographic composition, coherent scale, restrained educational colors, crisp boundaries, and generous transparent margin around the subject for external callout lines.",
+    "Show every requested component clearly when physically possible. Use a composition appropriate to the selected style, coherent scale, restrained educational colors, crisp boundaries, and generous transparent margin around the subject for external callout lines.",
     "Do not draw any words, letters, numbers, legends, arrows, leader lines, watermarks, UI, or captions inside the image.",
     "Do not invent extra internal structures that would make the requested components ambiguous.",
     input.locale === "zh-CN"
@@ -93,6 +104,7 @@ export function buildVisionUserPrompt(input: GenerateDiagramRequest): string {
   return [
     `Diagram subject: ${input.subject}`,
     `Diagram type: ${diagramTypeLabels[input.diagramType]}`,
+    `Visual style: ${input.visualStyle}`,
     `Audience: ${input.audience}`,
     "Locate these exact component IDs:",
     partLines(input.parts),

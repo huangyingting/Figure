@@ -15,6 +15,7 @@ const request: GenerateDiagramRequest = {
   diagramType: "cutaway",
   audience: "工程学生",
   imageModel: "gpt-image-2",
+  visualStyle: "isometric",
   parts: [
     { id: "impeller", name: "叶轮", description: "传递机械能" },
     { id: "shaft", name: "主轴", description: "传递扭矩" },
@@ -68,5 +69,23 @@ describe("diagram prompts", () => {
       visualDirection: "Use a clean three-quarter cutaway with the rotor exposed.",
     });
     expect(prompt).toContain("Planned visual direction: Use a clean three-quarter cutaway");
+  });
+
+  it("separates stylish isometric rendering from the structural cutaway", () => {
+    const prompt = buildImagePrompt(request);
+    expect(prompt).toContain("technical cutaway");
+    expect(prompt).toContain("stylish isometric 3D illustration");
+    expect(prompt).toContain("orthographic, equal-axis view");
+    expect(prompt).toContain("preserving the requested structure");
+    expect(buildPlanUserPrompt(request)).toContain("Selected visual style: isometric");
+    expect(buildVisionUserPrompt(request)).toContain("Visual style: isometric");
+  });
+
+  it.each(["realistic", "blueprint"] as const)("honors the %s alternative without changing the subject", (visualStyle) => {
+    const prompt = buildImagePrompt({ ...request, visualStyle });
+    expect(prompt).toContain(`Selected visual style: ${visualStyle}`);
+    expect(prompt).toContain("technical cutaway");
+    expect(prompt).toContain("pure white");
+    expect(prompt).not.toContain("stylish isometric 3D illustration");
   });
 });

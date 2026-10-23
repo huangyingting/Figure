@@ -3,9 +3,14 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { PrismaClient } from "@prisma/client";
+import nextEnv from "@next/env";
 import { demoResult } from "../src/lib/demo-data";
 import { FilesystemFigureStorage } from "../src/lib/storage/filesystem";
 
+nextEnv.loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production");
+if (process.env.NODE_ENV === "production") {
+  throw new Error("The demo seed must not run in production.");
+}
 const prisma = new PrismaClient();
 
 async function main() {
@@ -20,7 +25,7 @@ async function main() {
   // 12-credit demo grant account for the seeded 24.
   if (!(await prisma.creditLedger.findFirst({ where: { userId: user.id, reason: "signup_bonus" } }))) {
     await prisma.creditLedger.create({
-      data: { userId: user.id, amount: 12, balance: 12, reason: "signup_bonus", createdAt: user.createdAt },
+      data: { userId: user.id, amount: 12, balance: 12, reason: "signup_bonus", referenceId: "signup", createdAt: user.createdAt },
     });
   }
   if (!(await prisma.creditLedger.findFirst({ where: { userId: user.id, reason: "promo_grant" } }))) {
@@ -47,6 +52,7 @@ async function main() {
       isPublic: true,
       diagramType: "cutaway",
       audience: "curious learners",
+      visualStyle: demoResult.provenance.visualStyle ?? "realistic",
     },
     create: {
       id: demoResult.id, ownerId: user.id, title: demoResult.annotation.title,
@@ -56,6 +62,7 @@ async function main() {
       imageModel: demoResult.provenance.imageModel, visionModel: demoResult.provenance.visionModel,
       annotationJson: JSON.stringify(demoResult.annotation), isPublic: true, viewCount: 128,
       diagramType: "cutaway", audience: "curious learners",
+      visualStyle: demoResult.provenance.visualStyle ?? "realistic",
     },
   });
 
@@ -95,8 +102,6 @@ async function main() {
       answers: {
         createMany: {
           data: answers.map((answer) => ({
-            userId: user.id,
-            figureId: demoResult.id,
             partId: answer.partId,
             answer: answer.answer,
             correct: answer.correct,

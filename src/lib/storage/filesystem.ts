@@ -24,10 +24,19 @@ export class FilesystemFigureStorage implements FigureStorage {
   }
 
   async get(key: string) {
-    try { return await fs.readFile(this.resolve(key)); } catch { return null; }
+    try {
+      return await fs.readFile(this.resolve(key));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
   }
 
   async delete(key: string) {
-    try { await fs.unlink(this.resolve(key)); } catch { /* idempotent */ }
+    try {
+      await fs.unlink(this.resolve(key));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
   }
 }

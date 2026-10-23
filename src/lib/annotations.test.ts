@@ -12,6 +12,7 @@ const request: GenerateDiagramRequest = {
   diagramType: "cutaway",
   audience: "学生",
   imageModel: "gpt-image-2",
+  visualStyle: "isometric",
   parts: [
     { id: "case", name: "外壳", description: "包围内部结构" },
     { id: "rotor", name: "转子", description: "旋转部件" },

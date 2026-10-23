@@ -155,9 +155,9 @@ export function normalizeVisionPayload(
   }
 
   return {
-    title: String(payload.title || request.subject).slice(0, 160),
-    summary: String(payload.summary || translate(request.locale, "AI spatial-grounding draft")).slice(0, 1000),
+    title: (payload.title.trim() || request.subject).slice(0, 160),
+    summary: (payload.summary.trim() || translate(request.locale, "AI spatial-grounding draft")).slice(0, 1000),
     parts,
-    warnings: [...new Set(warnings.map((warning) => String(warning).slice(0, 500)))],
+    warnings: [...new Set(warnings.map((warning) => String(warning).slice(0, 500)))].slice(0, 30),
   };
 }

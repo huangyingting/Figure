@@ -27,8 +27,17 @@ describe("figure storage", () => {
     const data = Buffer.from("private visual");
     const stored = await storage.put(data, "image/webp", "owner-a");
     expect(await storage.get(stored.storageKey)).toEqual(data);
-    expect(await storage.get("../../outside.txt")).toBeNull();
+    await expect(storage.get("../../outside.txt")).rejects.toThrow("escapes base directory");
+    await expect(storage.delete("../../outside.txt")).rejects.toThrow("escapes base directory");
     await storage.delete(stored.storageKey);
     expect(await storage.get(stored.storageKey)).toBeNull();
+  });
+
+  it("surfaces filesystem errors instead of reporting an absent image", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "figure-storage-error-"));
+    tempDirs.push(dir);
+    const storage = new FilesystemFigureStorage(dir);
+    await expect(storage.get(".")).rejects.toMatchObject({ code: "EISDIR" });
+    await expect(storage.delete(".")).rejects.toMatchObject({ code: expect.any(String) });
   });
 });

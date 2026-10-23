@@ -52,9 +52,11 @@ export function normalizeQuizFigureBrowserParams(
   params: QuizFigureBrowserParams,
 ): { query: string; page: number } {
   const query = first(params.q).trim().slice(0, 120);
-  const requestedPage = Number.parseInt(first(params.page), 10);
-  const page = query && Number.isFinite(requestedPage)
-    ? Math.max(1, requestedPage)
+  const pageParam = first(params.page);
+  const requestedPage = Number(pageParam);
+  const maxPage = Math.floor(2_147_483_647 / quizFigurePageSize) + 1;
+  const page = query && /^\d+$/.test(pageParam) && Number.isSafeInteger(requestedPage) && requestedPage >= 1 && requestedPage <= maxPage
+    ? requestedPage
     : 1;
   return { query, page };
 }

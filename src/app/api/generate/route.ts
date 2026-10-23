@@ -11,6 +11,7 @@ import {
 } from "@/lib/azure-openai";
 import {
   GenerateDiagramRequestSchema,
+  AnnotationUpdateSchema,
   type DiagramResult,
 } from "@/lib/contracts";
 import { auth } from "@/auth";
@@ -56,7 +57,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     chargedUserId = session.user.id;
     const image = await generateAzureImage(input);
     const rawAnnotation = await locateDiagramParts(input, image.src);
-    const annotation = normalizeVisionPayload(rawAnnotation, input);
+    const normalized = AnnotationUpdateSchema.safeParse(normalizeVisionPayload(rawAnnotation, input));
+    if (!normalized.success) throw new Error("Generated annotations failed validation.", { cause: normalized.error });
+    const annotation = normalized.data;
 
     const stored = await getFigureStorage().put(dataUrlToBuffer(image.src), image.mimeType, session.user.id);
     const annotationJson = JSON.stringify(annotation);
@@ -76,6 +79,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         annotationJson,
         diagramType: input.diagramType,
         audience: input.audience,
+        visualStyle: input.visualStyle,
         revisions: { create: { annotationJson, source: "ai-draft" } },
       },
     });
@@ -96,6 +100,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         visionModel: process.env.AZURE_VISION_DEPLOYMENT || "gpt-5.6-terra",
         generatedAt: new Date().toISOString(),
         reviewRequired: true,
+        visualStyle: input.visualStyle,
       },
     };
 
@@ -107,17 +112,28 @@ export async function POST(request: Request): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    if (chargedUserId) await refundGenerationCredit(chargedUserId, requestId).catch(console.error);
+    if (chargedUserId) {
+      try {
+        await refundGenerationCredit(chargedUserId, requestId);
+      } catch (refundError) {
+        console.error(`[diagram:${requestId}] credit refund failed`, { error, refundError });
+        return NextResponse.json({
+          error: t("Generation failed and your credit could not be restored. Contact the administrator with this request ID."),
+          code: "CREDIT_REFUND_FAILED",
+          requestId,
+        }, { status: 503 });
+      }
+    }
     if (error instanceof BodyTooLargeError) {
       return NextResponse.json(
         { error: t("The request exceeds 64 KB."), code: "REQUEST_TOO_LARGE", requestId },
         { status: 413 },
       );
     }
-    if (error instanceof ZodError) {
+    if (error instanceof SyntaxError || error instanceof ZodError) {
       return NextResponse.json(
         {
-          error: zodMessage(error),
+          error: error instanceof ZodError ? zodMessage(error) : t("Invalid request."),
           code: "INVALID_REQUEST",
           requestId,
         },

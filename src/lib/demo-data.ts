@@ -1,4 +1,5 @@
-import type { DiagramResult } from "@/lib/contracts";
+import { parseStoredAnnotation } from "@/lib/annotations";
+import type { DiagramAnnotation, DiagramResult } from "@/lib/contracts";
 import type { Locale } from "@/lib/i18n-shared";
 import generatedDemoResult from "@/lib/demo-pump.generated.json";
 
@@ -75,7 +76,8 @@ export function localizeDemoFigure<T extends {
   subject?: string;
   summary?: string;
 }>(figure: T, locale: Locale): T {
-  if (locale === "en" || figure.id !== demoResult.id) return figure;
+  if (locale === "en" || figure.id !== demoResult.id || figure.title !== demoResult.annotation.title ||
+      (figure.summary !== undefined && figure.summary !== demoResult.annotation.summary)) return figure;
   const localized = localizedDemoResult(locale);
   return {
     ...figure,
@@ -83,4 +85,12 @@ export function localizeDemoFigure<T extends {
     ...(figure.subject === undefined ? {} : { subject: demoSubject[locale] }),
     ...(figure.summary === undefined ? {} : { summary: localized.annotation.summary }),
   };
+}
+
+export function storedFigureAnnotation(id: string, annotationJson: string, locale: Locale): DiagramAnnotation {
+  const annotation = parseStoredAnnotation(annotationJson);
+  if (id === demoResult.id && JSON.stringify(annotation) === JSON.stringify(demoResult.annotation)) {
+    return localizedDemoResult(locale).annotation;
+  }
+  return annotation;
 }

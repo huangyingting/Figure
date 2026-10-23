@@ -1,8 +1,9 @@
 import { hash } from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { grantSignupBonus } from "@/lib/credits";
+import { SIGNUP_CREDIT_ENTRY } from "@/lib/credits";
 import { requestTranslator } from "@/lib/i18n-shared";
 import { prisma } from "@/lib/prisma";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
@@ -31,10 +32,21 @@ export async function POST(request: Request) {
   if (existing) return NextResponse.json({ error: t("An account already exists for this email.") }, { status: 409 });
 
   const passwordHash = await hash(parsed.data.password, 12);
-  const user = await prisma.user.create({
-    data: { name: parsed.data.name, email: parsed.data.email, passwordHash },
-    select: { id: true },
-  });
-  await grantSignupBonus(user.id);
+  try {
+    await prisma.user.create({
+      data: {
+        name: parsed.data.name,
+        email: parsed.data.email,
+        passwordHash,
+        creditLedger: { create: SIGNUP_CREDIT_ENTRY },
+      },
+      select: { id: true },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ error: t("An account already exists for this email.") }, { status: 409 });
+    }
+    throw error;
+  }
   return NextResponse.json({ ok: true }, { status: 201 });
 }

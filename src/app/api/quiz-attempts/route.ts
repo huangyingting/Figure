@@ -19,13 +19,24 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: t("Invalid quiz attempt.") }, { status: 400 });
   const figure = await prisma.figure.findFirst({ where: { id: parsed.data.figureId, OR: [{ isPublic: true }, { ownerId: session.user.id }] }, select: { id: true, annotationJson: true } });
   if (!figure) return NextResponse.json({ error: t("Figure not found.") }, { status: 404 });
-  const validParts = new Set(parseStoredAnnotation(figure.annotationJson).parts.map((part) => part.id));
-  // One answer per part: QuizAnswer keys on (attemptId, partId), so a duplicate
-  // partId in the payload would otherwise fail the whole attempt.
-  const seenParts = new Set<string>();
-  const answers = parsed.data.answers
-    .filter((answer) => (seenParts.has(answer.partId) ? false : (seenParts.add(answer.partId), true)))
-    .map((answer) => ({ ...answer, correct: validParts.has(answer.partId) && answer.answer === answer.partId }));
+  // Match QuizRunner's question set; a completed attempt must answer every
+  // question exactly once, not just a client-selected easy subset.
+  const quizParts = parseStoredAnnotation(figure.annotationJson).parts.filter((part) => part.visible).slice(0, 7);
+  const validParts = new Set(quizParts.map((part) => part.id));
+  const submittedParts = new Set(parsed.data.answers.map((answer) => answer.partId));
+  if (
+    quizParts.length === 0 ||
+    validParts.size !== quizParts.length ||
+    parsed.data.answers.length !== quizParts.length ||
+    submittedParts.size !== quizParts.length ||
+    parsed.data.answers.some((answer) => !validParts.has(answer.partId) || !validParts.has(answer.answer))
+  ) {
+    return NextResponse.json({ error: t("Invalid quiz attempt.") }, { status: 400 });
+  }
+  const answers = parsed.data.answers.map((answer) => ({
+    ...answer,
+    correct: answer.answer === answer.partId,
+  }));
   const score = answers.filter((answer) => answer.correct).length;
   const attempt = await prisma.quizAttempt.create({
     data: {
@@ -36,8 +47,6 @@ export async function POST(request: Request) {
       answers: {
         createMany: {
           data: answers.map((answer) => ({
-            userId: session.user.id,
-            figureId: figure.id,
             partId: answer.partId,
             answer: answer.answer,
             correct: answer.correct,

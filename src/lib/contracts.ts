@@ -10,6 +10,7 @@ export const DiagramTypeSchema = z.enum([
 ]);
 
 export const ImageModelSchema = z.enum(["gpt-image-2", "mai-image-2.5"]);
+export const VisualStyleSchema = z.enum(["isometric", "realistic", "blueprint"]);
 
 export const PartSpecSchema = z.object({
   id: z
@@ -31,11 +32,13 @@ export const DiagramBriefSchema = z.object({
   diagramType: DiagramTypeSchema,
   audience: z.string().trim().min(1).max(120),
   imageModel: ImageModelSchema,
+  visualStyle: VisualStyleSchema.default("isometric"),
 });
 
 export const PlanDiagramRequestSchema = z.object({
   subject: z.string().trim().min(2).max(240),
   locale: LocaleSchema.default("en"),
+  visualStyle: VisualStyleSchema.default("isometric"),
 });
 
 export const DiagramPlanSchema = z
@@ -85,6 +88,7 @@ export const GenerateDiagramRequestSchema = z
 export type DiagramType = z.infer<typeof DiagramTypeSchema>;
 export type Locale = z.infer<typeof LocaleSchema>;
 export type ImageModel = z.infer<typeof ImageModelSchema>;
+export type VisualStyle = z.infer<typeof VisualStyleSchema>;
 export type PartSpec = z.infer<typeof PartSpecSchema>;
 export type DiagramBrief = z.infer<typeof DiagramBriefSchema>;
 export type DiagramPlan = z.infer<typeof DiagramPlanSchema>;
@@ -136,6 +140,7 @@ export interface DiagramProvenance {
   visionModel: string;
   generatedAt: string;
   reviewRequired: true;
+  visualStyle?: VisualStyle;
 }
 
 export interface DiagramResult {
@@ -195,7 +200,7 @@ export const AnnotationUpdateSchema = z.object({
   parts: z
     .array(
       z.object({
-        id: z.string().trim().min(1).max(48),
+        id: PartSpecSchema.shape.id,
         index: z.number().int().min(0).max(99),
         name: z.string().trim().min(1).max(80),
         description: z.string().trim().min(1).max(500),
@@ -210,6 +215,23 @@ export const AnnotationUpdateSchema = z.object({
     .min(1)
     .max(12),
   warnings: z.array(z.string().max(500)).max(30),
+}).superRefine((annotation, context) => {
+  const ids = new Set<string>();
+  const indexes = new Set<number>();
+  for (const [index, part] of annotation.parts.entries()) {
+    const id = part.id.toLowerCase();
+    if (ids.has(id)) {
+      context.addIssue({ code: "custom", message: `Duplicate component ID: ${part.id}`, path: ["parts", index, "id"] });
+    }
+    if (indexes.has(part.index)) {
+      context.addIssue({ code: "custom", message: "Duplicate component index", path: ["parts", index, "index"] });
+    }
+    if (part.box.x + part.box.width > 1 + Number.EPSILON || part.box.y + part.box.height > 1 + Number.EPSILON) {
+      context.addIssue({ code: "custom", message: "Component box must fit inside the image", path: ["parts", index, "box"] });
+    }
+    ids.add(id);
+    indexes.add(part.index);
+  }
 });
 
 export type AnnotationUpdate = z.infer<typeof AnnotationUpdateSchema>;

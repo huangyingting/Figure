@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 import { auth } from "@/auth";
-import { parseStoredAnnotation } from "@/lib/annotations";
-import { AnnotationUpdateSchema, type DiagramResult } from "@/lib/contracts";
-import { localizedDemoResult } from "@/lib/demo-data";
+import { AnnotationUpdateSchema, VisualStyleSchema, type DiagramResult } from "@/lib/contracts";
+import { storedFigureAnnotation } from "@/lib/demo-data";
+import { BodyTooLargeError, readJson } from "@/lib/http";
 import { requestLocale, requestTranslator } from "@/lib/i18n-shared";
 import { prisma } from "@/lib/prisma";
 import { pruneRevisions } from "@/lib/revisions";
 import { getFigureStorage } from "@/lib/storage";
+
+const figureUpdateSchema = z.object({
+  isPublic: z.boolean().optional(),
+  title: z.string().trim().min(1).max(160).optional(),
+  annotation: AnnotationUpdateSchema.optional(),
+}).strict().refine((value) => Object.keys(value).length > 0);
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const t = requestTranslator(request);
@@ -15,14 +22,13 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const session = await auth();
   const figure = await prisma.figure.findUnique({ where: { id } });
   if (!figure || (!figure.isPublic && figure.ownerId !== session?.user?.id)) return NextResponse.json({ error: t("Figure not found.") }, { status: 404 });
-  const demo = localizedDemoResult(requestLocale(request));
   const result: DiagramResult = {
     id: figure.id,
     image: { src: `/api/figures/${id}/image`, mimeType: figure.imageMimeType, width: figure.imageWidth, height: figure.imageHeight, revisedPrompt: null },
-    annotation: figure.id === demo.id ? demo.annotation : parseStoredAnnotation(figure.annotationJson),
-    provenance: { source: "azure-generated", imageModel: figure.imageModel, visionModel: figure.visionModel, generatedAt: figure.createdAt.toISOString(), reviewRequired: true },
+    annotation: storedFigureAnnotation(figure.id, figure.annotationJson, requestLocale(request)),
+    provenance: { source: "azure-generated", imageModel: figure.imageModel, visionModel: figure.visionModel, generatedAt: figure.createdAt.toISOString(), reviewRequired: true, visualStyle: VisualStyleSchema.parse(figure.visualStyle) },
   };
-  return NextResponse.json(result);
+  return NextResponse.json(result, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -30,18 +36,34 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const { id } = await context.params;
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: t("Unauthorized") }, { status: 401 });
-  const body = await request.json().catch(() => null) as { isPublic?: unknown; title?: unknown; annotation?: unknown } | null;
-  const existing = await prisma.figure.findUnique({ where: { id }, select: { ownerId: true } });
+  const existing = await prisma.figure.findUnique({ where: { id }, select: { ownerId: true, annotationJson: true } });
   if (!existing || existing.ownerId !== session.user.id) return NextResponse.json({ error: t("Figure not found.") }, { status: 404 });
+  let raw: unknown;
+  try {
+    raw = await readJson(request, 64 * 1024);
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) return NextResponse.json({ error: t("The request exceeds 64 KB.") }, { status: 413 });
+    if (error instanceof SyntaxError) return NextResponse.json({ error: t("Invalid annotation payload.") }, { status: 400 });
+    throw error;
+  }
+  const parsed = figureUpdateSchema.safeParse(raw);
+  if (!parsed.success) return NextResponse.json({ error: t("Invalid annotation payload.") }, { status: 400 });
+  const body = parsed.data;
 
   let annotationUpdate: { annotationJson: string; title: string; summary: string } | undefined;
-  if (body?.annotation !== undefined) {
-    const parsed = AnnotationUpdateSchema.safeParse(body.annotation);
-    if (!parsed.success) return NextResponse.json({ error: t("Invalid annotation payload.") }, { status: 400 });
+  let annotation = body.annotation;
+  if (!annotation && body.title !== undefined) {
+    annotation = storedFigureAnnotation(id, existing.annotationJson, "en");
+    if (!AnnotationUpdateSchema.safeParse(annotation).success) {
+      return NextResponse.json({ error: t("Invalid annotation payload.") }, { status: 409 });
+    }
+  }
+  if (annotation) {
+    annotation = { ...annotation, ...(body.title === undefined ? {} : { title: body.title }) };
     annotationUpdate = {
-      annotationJson: JSON.stringify(parsed.data),
-      title: parsed.data.title.slice(0, 160),
-      summary: parsed.data.summary.slice(0, 1000),
+      annotationJson: JSON.stringify(annotation),
+      title: annotation.title,
+      summary: annotation.summary,
     };
   }
 
@@ -49,8 +71,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const updated = await tx.figure.update({
       where: { id },
       data: {
-        ...(typeof body?.isPublic === "boolean" ? { isPublic: body.isPublic } : {}),
-        ...(typeof body?.title === "string" && body.title.trim() ? { title: body.title.trim().slice(0, 160) } : {}),
+        ...(body.isPublic === undefined ? {} : { isPublic: body.isPublic }),
         ...(annotationUpdate ?? {}),
       },
     });

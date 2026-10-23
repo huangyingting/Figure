@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { AggregateAuthenticationError, DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
 
 import {
   type AzureStatus,
@@ -35,8 +36,8 @@ interface GeneratedImage extends DiagramImage {
 }
 
 export class AzureConfigurationError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "AzureConfigurationError";
   }
 }
@@ -95,7 +96,7 @@ function imageConfig(model: ImageModel): AzureResourceConfig {
 }
 
 function isConfigured(config: AzureResourceConfig): boolean {
-  return Boolean(config.apiKey && config.endpoint && config.deployment);
+  return Boolean(config.endpoint && config.deployment && (config.apiKey || process.env.AZURE_AUTH_MODE === "entra"));
 }
 
 function requireConfig(
@@ -107,12 +108,50 @@ function requireConfig(
       `${label} is missing an Azure endpoint. Set a dedicated endpoint or AZURE_OPENAI_ENDPOINT.`,
     );
   }
-  if (!config.apiKey) {
+  if (!config.apiKey && process.env.AZURE_AUTH_MODE !== "entra") {
     throw new AzureConfigurationError(
       `${label} is missing an API key. Set a dedicated key or AZURE_OPENAI_API_KEY.`,
     );
   }
   return config;
+}
+
+let tokenProvider: (() => Promise<string>) | undefined;
+const entraEndpoints = new Set<string>();
+
+async function azureRequest<T>(
+  config: AzureResourceConfig,
+  execute: (token: string, bearer: boolean) => Promise<T>,
+): Promise<T> {
+  const mode = process.env.AZURE_AUTH_MODE || "auto";
+  if (!["auto", "api-key", "entra"].includes(mode)) {
+    throw new AzureConfigurationError("AZURE_AUTH_MODE must be auto, api-key, or entra.");
+  }
+  const useEntra = mode === "entra" || (mode === "auto" && entraEndpoints.has(config.endpoint));
+  const withEntra = async () => {
+    try {
+      tokenProvider ??= getBearerTokenProvider(new DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default");
+      return await execute(await tokenProvider(), true);
+    } catch (error) {
+      if (error instanceof AggregateAuthenticationError) {
+        throw new AzureConfigurationError("Azure authentication is unavailable. Configure a managed identity, workload identity, or Azure CLI login for the resource.", { cause: error });
+      }
+      if (error && typeof error === "object" && "code" in error &&
+          error.code === "Tenant provided in token does not match resource token") {
+        throw new AzureConfigurationError("The Azure identity belongs to a different tenant than the configured resource. Use credentials from the resource tenant.", { cause: error });
+      }
+      throw error;
+    }
+  };
+  if (useEntra) return withEntra();
+  try {
+    return await execute(config.apiKey, false);
+  } catch (error) {
+    if (mode !== "auto" || !error || typeof error !== "object" ||
+        !("code" in error) || error.code !== "AuthenticationTypeDisabled") throw error;
+    entraEndpoints.add(config.endpoint);
+    return withEntra();
+  }
 }
 
 export function getAzureStatus(): AzureStatus {
@@ -266,19 +305,30 @@ async function generateMaiImage(
   prompt: string,
   dimensions: { width: number; height: number },
 ): Promise<{ src: string; revisedPrompt: null }> {
-  const response = await fetch(normalizeMaiImageURL(config.endpoint), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": config.apiKey,
-    },
-    body: JSON.stringify({
-      model: config.deployment,
-      prompt,
-      width: dimensions.width,
-      height: dimensions.height,
-    }),
-    signal: AbortSignal.timeout(requestTimeout()),
+  const response = await azureRequest(config, async (token, bearer) => {
+    const response = await fetch(normalizeMaiImageURL(config.endpoint), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(bearer ? { Authorization: `Bearer ${token}` } : { "api-key": token }),
+      },
+      body: JSON.stringify({
+        model: config.deployment,
+        prompt,
+        width: dimensions.width,
+        height: dimensions.height,
+      }),
+      signal: AbortSignal.timeout(requestTimeout()),
+    });
+    if (response.status === 403) {
+      const text = await response.clone().text();
+      let payload: { error?: { code?: string } } | undefined;
+      try { payload = JSON.parse(text); } catch (error) { if (!(error instanceof SyntaxError)) throw error; }
+      if (payload?.error?.code === "AuthenticationTypeDisabled") {
+        throw Object.assign(new Error("Key based authentication is disabled for this resource."), { code: "AuthenticationTypeDisabled" });
+      }
+    }
+    return response;
   });
   if (!response.ok) {
     throw new Error(`MAI image generation failed (HTTP ${response.status}).`);
@@ -312,13 +362,13 @@ export async function generateAzureImage(
     };
   }
 
-  const response = await client(config, { "api-version": "preview" }).images.generate({
+  const response = await azureRequest(config, (token) => client({ ...config, apiKey: token }, { "api-version": "preview" }).images.generate({
     model: config.deployment,
     prompt,
     n: 1,
     size: dimensions.size,
     quality: quality as "low" | "medium" | "high" | "auto",
-  });
+  }));
 
   const item = response.data?.[0];
   if (!item) throw new Error("The Azure image model returned no image.");
@@ -342,7 +392,9 @@ function parseStructuredText(text: string): VisionModelPayload {
   } catch {
     throw new Error("The vision model did not return valid JSON.");
   }
-  return VisionModelPayloadSchema.parse(parsed);
+  const result = VisionModelPayloadSchema.safeParse(parsed);
+  if (!result.success) throw new Error("The vision model returned an invalid annotation.", { cause: result.error });
+  return result.data;
 }
 
 function parsePlanText(text: string): DiagramPlan {
@@ -352,7 +404,9 @@ function parsePlanText(text: string): DiagramPlan {
   } catch {
     throw new Error("The planning model did not return valid JSON.");
   }
-  return DiagramPlanSchema.parse(parsed);
+  const result = DiagramPlanSchema.safeParse(parsed);
+  if (!result.success) throw new Error("The planning model returned an invalid plan.", { cause: result.error });
+  return result.data;
 }
 
 function selectedVisionApi(): VisionApi {
@@ -367,7 +421,7 @@ export async function planDiagramParts(
   const config = requireConfig(visionConfig(), "Planning model");
 
   if (selectedVisionApi() === "chat-completions") {
-    const response = await client(config).chat.completions.create({
+    const response = await azureRequest(config, (token) => client({ ...config, apiKey: token }).chat.completions.create({
       model: config.deployment,
       messages: [
         { role: "system", content: buildPlanSystemPrompt(input.locale) },
@@ -381,13 +435,13 @@ export async function planDiagramParts(
           schema: diagramPlanJsonSchema,
         },
       },
-    });
+    }));
     const text = response.choices[0]?.message.content;
     if (!text) throw new Error("The planning model returned no content.");
     return parsePlanText(text);
   }
 
-  const response = await client(config).responses.create({
+  const response = await azureRequest(config, (token) => client({ ...config, apiKey: token }).responses.create({
     model: config.deployment,
     store: false,
     input: [
@@ -409,7 +463,7 @@ export async function planDiagramParts(
       },
     },
     max_output_tokens: 2400,
-  });
+  }));
   if (!response.output_text) {
     throw new Error("The planning model returned no output text.");
   }
@@ -421,7 +475,7 @@ async function locateWithResponses(
   input: GenerateDiagramRequest,
   imageDataURL: string,
 ): Promise<VisionModelPayload> {
-  const response = await client(config).responses.create({
+  const response = await azureRequest(config, (token) => client({ ...config, apiKey: token }).responses.create({
     model: config.deployment,
     store: false,
     input: [
@@ -450,7 +504,7 @@ async function locateWithResponses(
       },
     },
     max_output_tokens: 6000,
-  });
+  }));
 
   if (!response.output_text) {
     throw new Error("The vision model response contains no output text.");
@@ -463,7 +517,7 @@ async function locateWithChatCompletions(
   input: GenerateDiagramRequest,
   imageDataURL: string,
 ): Promise<VisionModelPayload> {
-  const response = await client(config).chat.completions.create({
+  const response = await azureRequest(config, (token) => client({ ...config, apiKey: token }).chat.completions.create({
     model: config.deployment,
     messages: [
       { role: "system", content: buildVisionSystemPrompt(input.locale) },
@@ -486,7 +540,7 @@ async function locateWithChatCompletions(
         schema: visionAnnotationJsonSchema,
       },
     },
-  });
+  }));
 
   const text = response.choices[0]?.message.content;
   if (!text) throw new Error("The vision model response contains no text.");

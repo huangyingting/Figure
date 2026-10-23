@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { localizedDemoResult, localizeDemoFigure } from "@/lib/demo-data";
+import { demoResult, localizedDemoResult, localizeDemoFigure } from "@/lib/demo-data";
 import { normalizeLocale, requestLocale, translate } from "@/lib/i18n-shared";
 
 function sourceFiles(directory: string): string[] {
@@ -61,7 +61,7 @@ describe("localized demo annotation", () => {
       id: "offline-demo-centrifugal-pump",
       title: "Single-stage end-suction centrifugal pump cutaway",
       subject: "Inside a centrifugal pump",
-      summary: "English summary",
+      summary: demoResult.annotation.summary,
     }, "zh-CN");
 
     expect(figure).toMatchObject({
@@ -69,5 +69,17 @@ describe("localized demo annotation", () => {
       subject: "离心泵内部结构",
       summary: expect.stringContaining("青绿色蜗壳"),
     });
+  });
+
+  it("preserves edited demo titles and summaries when switching language", () => {
+    const figure = localizeDemoFigure({
+      id: demoResult.id,
+      title: "My edited pump",
+      subject: "Inside a centrifugal pump",
+      summary: "My reviewed explanation",
+    }, "zh-CN");
+
+    expect(figure.title).toBe("My edited pump");
+    expect(figure.summary).toBe("My reviewed explanation");
   });
 });
