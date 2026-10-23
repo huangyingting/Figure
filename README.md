@@ -18,7 +18,7 @@ All menu-style selects use the shared accessible custom listbox component; the a
 
 ```bash
 npm install
-cp .env.example .env.local
+npm run setup:local
 npm run db:generate
 npm run db:deploy
 npm run db:seed
@@ -26,7 +26,7 @@ npm run dev
 ```
 
 The seed adds a public centrifugal-pump lesson and the local development account `demo@figure.local` / `figure-demo`. Seed credentials are for local development only.
-If `.env.local` already exists, merge the required database and authentication settings instead of replacing provider credentials. Prisma commands and the seed load the same environment files as Next.js.
+`setup:local` adds only missing database/authentication settings, generates a random local auth secret, and preserves existing provider credentials. Configure Azure using `.env.example` as a reference; never replace an existing environment file wholesale. Prisma commands and the seed load the same environment files as Next.js.
 
 Run the full verification gate with:
 
@@ -124,3 +124,9 @@ Set a random `AUTH_SECRET`, the public HTTPS `AUTH_URL`, `DATABASE_URL`, and pro
 SQLite and local storage require persistent volumes and a single application instance. The in-memory rate limiter is also per-process; multi-instance deployments need a shared limiter and a database/storage deployment designed for that topology. Back up the database and image storage together. Databases previously created with `db:push` need an operator-reviewed migration baseline before `db:deploy`; do not reset an existing production database.
 
 The automated gate does not certify external credentials, OAuth callback registration, cloud permissions, backups, or deployment capacity. Verify live planning, rendering, and spatial grounding against the intended Azure resource, plus each configured social provider, before release. Generation errors include a request ID; `CREDIT_REFUND_FAILED` means an administrator must reconcile that charge after restoring database access.
+
+### Interrupted generation recovery
+
+After a process crash or refund database failure, inspect server logs for the affected user and request ID. Preview a specific charge with `npm run credits:recover -- USER_ID REQUEST_ID`. This command is dry-run by default and rejects charges less than 24 hours old, unexpected charge amounts, and requests with a saved figure. Existing refunds are no-ops.
+
+A missing figure alone does **not** prove failure: a successful figure may have been deleted. Confirm the request failed using logs, stop generation traffic, back up the database, then apply with `npm run credits:recover -- USER_ID REQUEST_ID --apply --confirm-failed-request`. This is an operator CLI, not an HTTP endpoint or automatic bulk refund. Database failures are reported, and balance/refund entries commit atomically.

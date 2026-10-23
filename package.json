@@ -16,6 +16,8 @@
     "db:deploy": "node scripts/prisma.mjs migrate deploy",
     "db:push": "node scripts/prisma.mjs db push",
     "db:seed": "tsx prisma/seed.ts",
+    "setup:local": "node scripts/setup-local.mjs",
+    "credits:recover": "tsx scripts/recover-generation-credit.ts",
     "demo:generate": "tsx scripts/generate-demo-pump.ts",
     "check": "npm run test && npm run typecheck && npm run lint && npm run build"
   },

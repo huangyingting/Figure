@@ -10,6 +10,7 @@ const tx = {
     findFirst: vi.fn(),
     create: vi.fn(),
   },
+  figure: { findUnique: vi.fn() },
 };
 
 vi.mock("@/lib/prisma", () => ({
@@ -18,11 +19,12 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { consumeGenerationCredit, refundGenerationCredit } from "@/lib/credits";
+import { consumeGenerationCredit, recoverGenerationCredit, refundGenerationCredit } from "@/lib/credits";
 
 beforeEach(() => {
   vi.resetAllMocks();
   tx.creditLedger.findFirst.mockResolvedValue(null);
+  tx.figure.findUnique.mockResolvedValue(null);
 });
 
 describe("consumeGenerationCredit", () => {
@@ -54,17 +56,23 @@ describe("consumeGenerationCredit", () => {
   });
 
   it("does not charge the same generation twice", async () => {
-    tx.creditLedger.findFirst.mockResolvedValue({ id: "debit" });
+    tx.creditLedger.findFirst.mockResolvedValueOnce({ id: "debit" }).mockResolvedValueOnce(null);
     tx.user.findUniqueOrThrow.mockResolvedValue({ credits: 9 });
     expect(await consumeGenerationCredit("user-1", "req-1")).toBe(9);
     expect(tx.user.updateMany).not.toHaveBeenCalled();
     expect(tx.creditLedger.create).not.toHaveBeenCalled();
   });
+
+  it("rejects reuse of a refunded generation reference", async () => {
+    tx.creditLedger.findFirst.mockResolvedValueOnce({ id: "debit" }).mockResolvedValueOnce({ id: "refund" });
+    await expect(consumeGenerationCredit("user-1", "req-1")).rejects.toThrow("cannot be reused");
+    expect(tx.user.updateMany).not.toHaveBeenCalled();
+  });
 });
 
 describe("refundGenerationCredit", () => {
   it("increments and records a refund when none exists yet", async () => {
-    tx.creditLedger.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "debit" });
+    tx.creditLedger.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "debit", amount: -1 });
     tx.user.update.mockResolvedValue({ credits: 12 });
     tx.creditLedger.create.mockResolvedValue({});
 
@@ -75,6 +83,7 @@ describe("refundGenerationCredit", () => {
       data: { credits: { increment: 1 } },
       select: { credits: true },
     });
+
     expect(tx.creditLedger.create).toHaveBeenCalledWith({
       data: { userId: "user-1", amount: 1, balance: 12, reason: "figure_generation_refund", referenceId: "req-1" },
     });
@@ -92,6 +101,54 @@ describe("refundGenerationCredit", () => {
   it("rejects refunds without a matching charge", async () => {
     await expect(refundGenerationCredit("user-1", "unknown")).rejects.toThrow("matching charge");
     expect(tx.user.update).not.toHaveBeenCalled();
+    expect(tx.creditLedger.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("recoverGenerationCredit", () => {
+  const before = new Date("2020-01-02T00:00:00Z");
+
+  beforeEach(() => {
+    tx.creditLedger.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      id: "debit", amount: -1, createdAt: new Date("2020-01-01T00:00:00Z"),
+    });
+  });
+
+  it("previews an old unmatched charge without changing the balance", async () => {
+    expect(await recoverGenerationCredit("user-1", "req-1", { before, dryRun: true })).toBe("eligible-for-review");
+    expect(tx.user.update).not.toHaveBeenCalled();
+    expect(tx.creditLedger.create).not.toHaveBeenCalled();
+  });
+
+  it("applies a confirmed recovery through the existing refund transaction", async () => {
+    tx.user.update.mockResolvedValue({ credits: 12 });
+    expect(await recoverGenerationCredit("user-1", "req-1", { before, dryRun: false })).toBe("refunded");
+    expect(tx.creditLedger.create).toHaveBeenCalledOnce();
+  });
+
+  it("does not refund saved figures", async () => {
+    tx.figure.findUnique.mockResolvedValue({ id: "req-1" });
+    await expect(recoverGenerationCredit("user-1", "req-1", { before, dryRun: false })).rejects.toThrow("saved figure");
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects recent charges", async () => {
+    await expect(recoverGenerationCredit("user-1", "req-1", {
+      before: new Date("2019-12-31T00:00:00Z"), dryRun: false,
+    })).rejects.toThrow("too recent");
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects a recent or invalid cutoff", async () => {
+    for (const cutoff of [new Date(), new Date("invalid")]) {
+      await expect(recoverGenerationCredit("user-1", "req-1", { before: cutoff, dryRun: false })).rejects.toThrow("24 hours");
+    }
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
+
+  it("surfaces database failures instead of claiming recovery", async () => {
+    tx.user.update.mockRejectedValue(new Error("database unavailable"));
+    await expect(recoverGenerationCredit("user-1", "req-1", { before, dryRun: false })).rejects.toThrow("database unavailable");
     expect(tx.creditLedger.create).not.toHaveBeenCalled();
   });
 });
