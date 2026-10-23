@@ -21,7 +21,7 @@ export default async function FavoritesPage() {
   const [session, t] = await Promise.all([auth(), getTranslator()]);
   if (!session?.user?.id) redirect("/signin?callbackUrl=/favorites");
   const favorites = await prisma.favorite.findMany({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, figure: { OR: [{ isPublic: true }, { ownerId: session.user.id }] } },
     orderBy: { createdAt: "desc" },
     take: 120,
     include: { figure: { select: figureSelect } },

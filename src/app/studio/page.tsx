@@ -6,8 +6,9 @@ import { getTranslator } from "@/lib/i18n";
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslator())("Create") };
 }
-export default async function StudioPage({ searchParams }: { searchParams: Promise<{ subject?: string }> }) {
+export default async function StudioPage({ searchParams }: { searchParams: Promise<{ subject?: string | string[] }> }) {
   const [user, { subject }] = await Promise.all([headerUser(), searchParams]);
-  const initialSubject = subject?.trim() ? subject.trim().slice(0, 240) : undefined;
+  const topic = Array.isArray(subject) ? subject[0] : subject;
+  const initialSubject = topic?.trim() ? topic.trim().slice(0, 240) : undefined;
   return <DiagramStudio headerUser={user} initialSubject={initialSubject} />;
 }

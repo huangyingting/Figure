@@ -5,9 +5,8 @@ import { auth } from "@/auth";
 import { FigureDetail } from "@/components/figure-detail";
 import { ProductShell } from "@/components/product-shell";
 import { Page } from "@/components/ui";
-import { parseStoredAnnotation } from "@/lib/annotations";
-import type { DiagramResult } from "@/lib/contracts";
-import { localizedDemoResult, localizeDemoFigure } from "@/lib/demo-data";
+import type { DiagramResult, VisualStyle } from "@/lib/contracts";
+import { localizeDemoFigure, storedFigureAnnotation } from "@/lib/demo-data";
 import { getLocale, getTranslator } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 
@@ -39,10 +38,8 @@ export default async function FigurePage({ params }: { params: Promise<{ id: str
   }
   const collections = session?.user?.id ? await prisma.collection.findMany({ where: { ownerId: session.user.id }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : [];
   const favorited = session?.user?.id ? Boolean(await prisma.favorite.findUnique({ where: { userId_figureId: { userId: session.user.id, figureId: id } }, select: { figureId: true } })) : false;
-  const annotation = figure.id === localizedDemoResult(locale).id
-    ? localizedDemoResult(locale).annotation
-    : parseStoredAnnotation(figure.annotationJson);
-  const result: DiagramResult = { id: figure.id, image: { src: `/api/figures/${figure.id}/image`, mimeType: figure.imageMimeType, width: figure.imageWidth, height: figure.imageHeight, revisedPrompt: null }, annotation, provenance: { source: figure.id.startsWith("offline-demo") ? "offline-demo" : "azure-generated", imageModel: figure.imageModel, visionModel: figure.visionModel, generatedAt: figure.createdAt.toISOString(), reviewRequired: true } };
+  const annotation = storedFigureAnnotation(figure.id, figure.annotationJson, locale);
+  const result: DiagramResult = { id: figure.id, image: { src: `/api/figures/${figure.id}/image`, mimeType: figure.imageMimeType, width: figure.imageWidth, height: figure.imageHeight, revisedPrompt: null }, annotation, provenance: { source: figure.id.startsWith("offline-demo") ? "offline-demo" : "azure-generated", imageModel: figure.imageModel, visionModel: figure.visionModel, generatedAt: figure.createdAt.toISOString(), reviewRequired: true, visualStyle: figure.visualStyle as VisualStyle } };
   const owner = figure.ownerId === session?.user?.id;
   const revisions = owner
     ? (await prisma.annotationRevision.findMany({

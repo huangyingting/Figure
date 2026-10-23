@@ -19,7 +19,7 @@ const figureSelect = { id: true, title: true, subject: true, summary: true, imag
 async function loadCollection(id: string, ownerId: string) {
   return prisma.collection.findFirst({
     where: { id, ownerId },
-    include: { figures: { orderBy: { addedAt: "desc" }, include: { figure: { select: figureSelect } } } },
+    include: { figures: { where: { figure: { OR: [{ isPublic: true }, { ownerId }] } }, orderBy: { addedAt: "desc" }, include: { figure: { select: figureSelect } } } },
   });
 }
 

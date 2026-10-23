@@ -5,9 +5,11 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 
 import { AnnotationCanvas } from "@/components/annotation-canvas";
+import { AnchorCoordinateInput } from "@/components/anchor-coordinate-input";
 import { AppHeader, type HeaderUser } from "@/components/app-header";
 import { CustomSelect } from "@/components/custom-select";
 import { useI18n } from "@/components/i18n-provider";
+import { VisualStyleSelect, visualStyleLabels } from "@/components/visual-style-select";
 import type {
   AnnotatedPart,
   AzureStatus,
@@ -15,8 +17,10 @@ import type {
   DiagramResult,
   ImageModel,
   Point,
+  VisualStyle,
 } from "@/lib/contracts";
 import { localizedDemoResult } from "@/lib/demo-data";
+import type { Locale } from "@/lib/i18n-shared";
 
 type GenerationStage = "idle" | "planning" | "rendering" | "complete" | "error";
 
@@ -25,12 +29,19 @@ const promptIdeas = {
   "zh-CN": ["火山的结构", "机械手表内部结构", "风力发电机如何工作"],
 } as const;
 
-function percent(value: number): string {
-  return `${Math.round(value * 100)}%`;
+function previewDemoResult(locale: Locale): DiagramResult {
+  const sample = localizedDemoResult(locale);
+  return {
+    ...sample,
+    provenance: {
+      ...sample.provenance,
+      visualStyle: sample.provenance.visualStyle ?? "realistic",
+    },
+  };
 }
 
-function coordinate(value: number): string {
-  return value.toFixed(3);
+function percent(value: number): string {
+  return `${Math.round(value * 100)}%`;
 }
 
 function sourceLabel(result: DiagramResult, t: (message: string) => string): string {
@@ -81,11 +92,14 @@ export function DiagramStudio({
 }) {
   const { locale, t } = useI18n();
   const { data: session, update: updateSession } = useSession();
-  const [result, setResult] = useState<DiagramResult>(() => localizedDemoResult(locale));
+  const [result, setResult] = useState<DiagramResult>(() => previewDemoResult(locale));
   const [subject, setSubject] = useState(initialSubject ?? (locale === "zh-CN" ? "离心泵内部结构" : "Inside a centrifugal pump"));
   const [imageModel, setImageModel] = useState<ImageModel>("gpt-image-2");
+  const [visualStyle, setVisualStyle] = useState<VisualStyle>("isometric");
   const [selectedId, setSelectedId] = useState<string | null>("impeller");
   const [status, setStatus] = useState<AzureStatus | null>(null);
+  const [statusUnavailable, setStatusUnavailable] = useState(false);
+  const [statusRetry, setStatusRetry] = useState(0);
   const [stage, setStage] = useState<GenerationStage>("idle");
   const [plan, setPlan] = useState<DiagramPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -111,12 +125,12 @@ export function DiagramStudio({
         }
       })
       .catch(() => {
-        if (active) setStatus(null);
+        if (active) { setStatus(null); setStatusUnavailable(true); }
       });
     return () => {
       active = false;
     };
-  }, []);
+  }, [statusRetry]);
 
   useEffect(() => {
     if (!notice) return;
@@ -176,6 +190,7 @@ export function DiagramStudio({
   }
 
   async function generate() {
+    if (isGenerating || saving || !canGenerate) return;
     const cleanSubject = subject.trim();
     if (cleanSubject.length < 2) {
       setError(t("Enter a topic with at least two characters."));
@@ -187,7 +202,8 @@ export function DiagramStudio({
     setPlan(null);
     setStage("planning");
 
-    const planBrief = { subject: cleanSubject, locale };
+    const requestedStyle = visualStyle;
+    const planBrief = { subject: cleanSubject, locale, visualStyle: requestedStyle };
     try {
       const planResponse = await fetch("/api/plan", {
         method: "POST",
@@ -207,6 +223,7 @@ export function DiagramStudio({
         diagramType: nextPlan.diagramType,
         audience: nextPlan.audience,
         imageModel,
+        visualStyle: requestedStyle,
       };
 
       const generationResponse = await fetch("/api/generate", {
@@ -226,7 +243,7 @@ export function DiagramStudio({
       setSelectedId(payload.annotation.parts.find((part) => part.visible)?.id ?? null);
       setShowAnnotations(true);
       setStage("complete");
-      await updateSession();
+      await updateSession().catch(() => undefined);
       setNotice(t("Your annotated figure is ready"));
       window.setTimeout(() => {
         document.getElementById("figure-workspace")?.scrollIntoView({
@@ -245,7 +262,8 @@ export function DiagramStudio({
   }
 
   function restoreDemo() {
-    setResult(localizedDemoResult(locale));
+    if (isGenerating || saving) return;
+    setResult(previewDemoResult(locale));
     setPlan(null);
     setSelectedId("impeller");
     setError(null);
@@ -405,17 +423,13 @@ export function DiagramStudio({
           <div className="grid grid-cols-2 gap-[7px]">
             <label className="grid min-w-0 grid-cols-[27px_1fr] items-center rounded-[5px] border border-line bg-[#f4efe2] text-center font-display text-micro font-bold text-muted">
               X
-              <input
+              <AnchorCoordinateInput
                 className="h-[38px] rounded-r-[5px] border-0 border-l border-line px-2 font-display text-meta text-ink-2 outline-none focus:border-pine focus:shadow-[0_0_0_3px_rgb(28_107_82_/_8%)]"
-                type="number"
-                min="0"
-                max="1"
-                step="0.001"
-                value={coordinate(part.anchor.x)}
-                disabled={!part.visible}
-                onChange={(event) =>
+                value={part.anchor.x}
+                disabled={!part.visible || saving}
+                onChange={(value) =>
                   moveAnchor(part.id, {
-                    x: Math.min(1, Math.max(0, Number(event.target.value))),
+                    x: value,
                     y: part.anchor.y,
                   })
                 }
@@ -423,18 +437,14 @@ export function DiagramStudio({
             </label>
             <label className="grid min-w-0 grid-cols-[27px_1fr] items-center rounded-[5px] border border-line bg-[#f4efe2] text-center font-display text-micro font-bold text-muted">
               Y
-              <input
+              <AnchorCoordinateInput
                 className="h-[38px] rounded-r-[5px] border-0 border-l border-line px-2 font-display text-meta text-ink-2 outline-none focus:border-pine focus:shadow-[0_0_0_3px_rgb(28_107_82_/_8%)]"
-                type="number"
-                min="0"
-                max="1"
-                step="0.001"
-                value={coordinate(part.anchor.y)}
-                disabled={!part.visible}
-                onChange={(event) =>
+                value={part.anchor.y}
+                disabled={!part.visible || saving}
+                onChange={(value) =>
                   moveAnchor(part.id, {
                     x: part.anchor.x,
-                    y: Math.min(1, Math.max(0, Number(event.target.value))),
+                    y: value,
                   })
                 }
               />
@@ -474,7 +484,7 @@ export function DiagramStudio({
                     : "bg-amber shadow-[0_0_0_4px_rgb(235_168_57_/_13%)]"
                 }`}
               />
-              {status === null ? t("Checking Azure") : t("Pipeline ready")}
+              {statusUnavailable ? t("Connection unavailable") : status === null ? t("Checking Azure") : t("Azure configured")}
             </div>
           ) : null
         }
@@ -532,7 +542,7 @@ export function DiagramStudio({
                 <button
                   className="group relative col-span-2 flex min-h-[48px] min-w-[174px] items-center justify-center gap-[9px] overflow-hidden rounded-[9px] border-0 bg-ink px-5 text-body font-[750] text-white shadow-[0_10px_24px_rgb(35_33_27_/_18%)] transition-[transform,background,opacity] duration-150 hover:not-disabled:-translate-y-[2px] hover:not-disabled:bg-pine disabled:cursor-not-allowed disabled:bg-[#e2dbc8] disabled:text-[#a09a8b] disabled:shadow-none after:absolute after:-top-[80%] after:-bottom-[80%] after:-left-[35%] after:w-[22%] after:-skew-x-[18deg] after:bg-[linear-gradient(90deg,transparent,rgb(255_255_255_/_24%),transparent)] after:transition-[left] after:duration-[550ms] hover:not-disabled:after:left-[115%] sm:col-span-1 sm:min-h-[57px]"
                   type="button"
-                  disabled={!canGenerate || isGenerating}
+                  disabled={!canGenerate || isGenerating || saving}
                   onClick={() => void generate()}
                 >
                   {isGenerating ? (
@@ -567,9 +577,10 @@ export function DiagramStudio({
             </div>
 
             {!signedOut && (
-              <div className="mt-3 flex flex-col items-stretch gap-[7px] border-t border-[#e5decb] px-[5px] pb-[7px] pt-[11px] text-meta leading-[1.4] text-muted sm:flex-row sm:items-center">
+              <div className="mt-3 flex flex-col flex-wrap items-stretch gap-[7px] border-t border-[#e5decb] px-[5px] pb-[7px] pt-[11px] text-meta leading-[1.4] text-muted sm:flex-row sm:items-center">
                 <span className="text-ui text-pine" aria-hidden="true">✦</span>
                 <p className="m-0 sm:mr-auto">{t("Visual format and audience are selected automatically")}</p>
+                <VisualStyleSelect value={visualStyle} onChange={setVisualStyle} />
                 <CustomSelect
                   compact
                   label={t("Image model")}
@@ -588,6 +599,10 @@ export function DiagramStudio({
                 {error}
               </div>
             )}
+            {statusUnavailable && <p className="mx-1 mt-3 text-ui text-muted" role="status">
+              {t("Could not check generation availability.")}{" "}
+              <button type="button" className="min-h-[36px] font-bold text-pine-dark underline" onClick={() => { setStatusUnavailable(false); setStatusRetry((value) => value + 1); }}>{t("Retry connection")}</button>
+            </p>}
             {signedOut && (
               <p className="mx-1 mt-[11px] text-ui leading-[1.55] text-muted">
                 {t("You’re browsing as a guest — the sample figure below is fully interactive.")}{" "}
@@ -661,7 +676,7 @@ export function DiagramStudio({
                 </Link>
               </div>
             ) : (
-            <div className="flex max-sm:w-full items-center gap-[7px]">
+            <div className="flex max-sm:w-full flex-wrap items-center gap-[7px]">
               <div className="mr-[6px] hidden items-center gap-[9px] border-r border-line-dark pr-[14px] sm:flex">
                 <div
                   className="grid h-[35px] w-[35px] place-items-center rounded-full bg-[conic-gradient(var(--color-pine)_var(--progress),#d7cfba_0)] before:col-start-1 before:row-start-1 before:h-[27px] before:w-[27px] before:rounded-full before:bg-[#efe8d6] before:content-['']"
@@ -736,6 +751,7 @@ export function DiagramStudio({
                 <div className="flex flex-wrap items-center gap-2 font-display text-micro text-muted">
                   <span className="rounded-full bg-pine-pale px-[7px] py-1 font-sans font-[750] text-pine-dark">{sourceLabel(result, t)}</span>
                   <span>{result.provenance.imageModel}</span>
+                  {result.provenance.visualStyle && <span className="rounded-full border border-line px-[7px] py-1">{t(visualStyleLabels[result.provenance.visualStyle])}</span>}
                   <i className="h-[3px] w-[3px] rounded-full bg-muted-2" />
                   <span>{result.annotation.parts.length} {t("components")}</span>
                   <i className="h-[3px] w-[3px] rounded-full bg-muted-2" />
@@ -766,6 +782,7 @@ export function DiagramStudio({
                     <button
                       className="min-h-[32px] flex-none max-sm:flex-1 max-sm:justify-center rounded-md border border-line-dark bg-paper/[0.72] px-3 text-meta font-bold text-ink-2 hover:border-pine hover:text-pine"
                       type="button"
+                      disabled={isGenerating || saving}
                       onClick={restoreDemo}
                     >
                       {t("Reset")}

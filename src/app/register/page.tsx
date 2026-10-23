@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { configuredSocialProviders } from "@/auth";
+import { safeCallbackUrl } from "@/auth.config";
 import { AuthForm } from "@/components/auth-form";
 import { FigureBrand } from "@/components/figure-brand";
 import { getTranslator } from "@/lib/i18n";
@@ -8,8 +9,10 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslator())("Create your account") };
 }
 
-export default async function RegisterPage() {
+export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ callbackUrl?: string | string[] }> }) {
   const t = await getTranslator();
+  const { callbackUrl: requestedCallback } = await searchParams;
+  const callbackUrl = safeCallbackUrl(Array.isArray(requestedCallback) ? requestedCallback[0] : requestedCallback);
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_20%_52%,rgb(28_107_82_/_13%),transparent_27rem),#f6f1e4] px-[max(40px,calc((100vw-1240px)/2))] max-[1100px]:px-[max(24px,calc((100vw-1240px)/2))] max-[760px]:px-[18px]">
       <header className="flex min-h-[80px] items-center border-b border-line"><FigureBrand /></header>
@@ -23,7 +26,7 @@ export default async function RegisterPage() {
             <span className="text-meta font-bold text-muted">{t("free figure credits")}</span>
           </div>
         </div>
-        <AuthForm mode="register" social={configuredSocialProviders()} />
+        <AuthForm mode="register" social={configuredSocialProviders()} callbackUrl={callbackUrl} />
       </div>
     </main>
   );

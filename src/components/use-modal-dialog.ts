@@ -4,10 +4,10 @@ import { useEffect, useRef } from "react";
 
 const FOCUSABLE = [
   "a[href]",
-  "button:not([disabled])",
-  "input:not([disabled])",
-  "textarea:not([disabled])",
-  "select:not([disabled])",
+  "button:not(:disabled)",
+  "input:not(:disabled)",
+  "textarea:not(:disabled)",
+  "select:not(:disabled)",
   '[tabindex]:not([tabindex="-1"])',
 ].join(",");
 
@@ -21,11 +21,18 @@ export function useModalDialog<T extends HTMLElement>(
   onClose: () => void,
 ) {
   const ref = useRef<T>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
     const container = ref.current;
     const previouslyFocused = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
 
     function focusables(): HTMLElement[] {
       if (!container) return [];
@@ -41,7 +48,7 @@ export function useModalDialog<T extends HTMLElement>(
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -65,9 +72,10 @@ export function useModalDialog<T extends HTMLElement>(
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return ref;
 }

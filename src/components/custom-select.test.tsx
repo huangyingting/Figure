@@ -18,6 +18,7 @@ describe("CustomSelect", () => {
     );
 
     expect(markup).toContain("<button");
+    expect(markup).toContain('role="combobox"');
     expect(markup).toContain('aria-haspopup="listbox"');
     expect(markup).toContain('aria-expanded="false"');
     expect(markup).toContain("GPT Image 2");

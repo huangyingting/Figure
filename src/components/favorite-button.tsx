@@ -6,28 +6,33 @@ import { useState } from "react";
 
 import { cn } from "@/components/ui";
 import { useI18n } from "@/components/i18n-provider";
+import { mutationRequest } from "@/components/mutation-request";
 
 export function FavoriteButton({ figureId, initialFavorited }: { figureId: string; initialFavorited: boolean }) {
   const { t } = useI18n();
   const router = useRouter();
   const [favorited, setFavorited] = useState(initialFavorited);
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState(false);
 
   async function toggle() {
     if (pending) return;
     setPending(true);
+    setError(false);
     const next = !favorited;
     setFavorited(next);
-    const response = await fetch(`/api/figures/${figureId}/favorite`, { method: next ? "POST" : "DELETE" });
+    const response = await mutationRequest(`/api/figures/${figureId}/favorite`, { method: next ? "POST" : "DELETE" });
     setPending(false);
     if (!response.ok) {
       setFavorited(!next);
+      setError(true);
       return;
     }
     router.refresh();
   }
 
   return (
+    <span className="inline-flex flex-col items-start gap-1">
     <button
       type="button"
       className={cn(
@@ -43,5 +48,7 @@ export function FavoriteButton({ figureId, initialFavorited }: { figureId: strin
       <Heart size={16} fill={favorited ? "currentColor" : "none"} />
       {favorited ? t("Favorited") : t("Favorite")}
     </button>
+    {error && <span role="alert" className="max-w-[230px] text-micro text-coral">{t("Could not update favorites. Please try again.")}</span>}
+    </span>
   );
 }

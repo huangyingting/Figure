@@ -80,6 +80,21 @@ function geometry(group: string): {
 }
 
 describe("AnnotationCanvas callout geometry", () => {
+  it("keeps read-only mobile markers pointer-selectable and exposes their controls", () => {
+    const markup = renderToStaticMarkup(
+      <AnnotationCanvas
+        image={{ src: "/demo-pump.png", mimeType: "image/png", width: 1536, height: 1024, revisedPrompt: null }}
+        parts={parts}
+        selectedId={null}
+        editable={false}
+        onSelect={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('role="group"');
+    expect(markup.match(/data-marker-target="true"/g) ?? []).toHaveLength(parts.length);
+    expect(markup).not.toContain("[touch-action:none]");
+  });
   it("connects every leader line directly to its label edge", () => {
     const groups = renderCallouts();
     expect(groups).toHaveLength(parts.length);

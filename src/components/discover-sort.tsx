@@ -18,6 +18,7 @@ export function DiscoverSort({ value }: { value: string }) {
 
   function change(next: string) {
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
     if (next === "popular") params.delete("sort");
     else params.set("sort", next);
     const query = params.toString();

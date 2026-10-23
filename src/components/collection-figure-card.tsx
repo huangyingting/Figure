@@ -7,6 +7,7 @@ import { useState } from "react";
 import { FigureCard, type FigureCardData } from "@/components/figure-card";
 import { useI18n } from "@/components/i18n-provider";
 import { localizeDemoFigure } from "@/lib/demo-data";
+import { mutationRequest } from "@/components/mutation-request";
 
 export function CollectionFigureCard({ figure, collectionId, tone }: { figure: FigureCardData; collectionId: string; tone?: string }) {
   const { locale, t } = useI18n();
@@ -17,7 +18,7 @@ export function CollectionFigureCard({ figure, collectionId, tone }: { figure: F
   async function remove() {
     if (removing) return;
     setRemoving(true);
-    const response = await fetch(`/api/collections/${collectionId}/figures`, {
+    const response = await mutationRequest(`/api/collections/${collectionId}/figures`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ figureId: figure.id }),
@@ -35,7 +36,7 @@ export function CollectionFigureCard({ figure, collectionId, tone }: { figure: F
       <FigureCard figure={figure} tone={tone} />
       <button
         type="button"
-        className="absolute right-3 top-3 z-[2] grid h-[30px] w-[30px] place-items-center rounded-full border-0 bg-[rgb(35_33_27_/_62%)] text-white opacity-0 backdrop-blur-[6px] transition-[opacity,background] duration-150 group-hover:opacity-100 hover:not-disabled:bg-[#dc2626] focus-visible:opacity-100 disabled:cursor-default disabled:opacity-50"
+        className="absolute right-3 top-3 z-[2] grid h-[36px] w-[36px] place-items-center rounded-full border-0 bg-[rgb(35_33_27_/_62%)] text-white opacity-100 backdrop-blur-[6px] transition-[opacity,background] duration-150 md:opacity-0 group-hover:opacity-100 hover:not-disabled:bg-[#dc2626] focus-visible:opacity-100 disabled:cursor-default disabled:opacity-50"
         aria-label={locale === "zh-CN" ? `从此收藏集中移除 ${displayFigure.title}` : `Remove ${displayFigure.title} from this collection`}
         onClick={() => void remove()}
         disabled={removing}

@@ -8,6 +8,7 @@ import { CustomSelect } from "@/components/custom-select";
 import { Button, Field, FieldError, Input, Textarea } from "@/components/ui";
 import { useModalDialog } from "@/components/use-modal-dialog";
 import { useI18n } from "@/components/i18n-provider";
+import { mutationRequest } from "@/components/mutation-request";
 
 interface EditCollectionButtonProps {
   collectionId: string;
@@ -23,7 +24,8 @@ export function EditCollectionButton({ collectionId, name, description, color }:
   const [tone, setTone] = useState(color);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const dialogRef = useModalDialog<HTMLElement>(editing, () => setEditing(false));
+  const close = () => { if (!pending) setEditing(false); };
+  const dialogRef = useModalDialog<HTMLElement>(editing, close);
 
   function open() {
     setTone(color);
@@ -32,9 +34,10 @@ export function EditCollectionButton({ collectionId, name, description, color }:
   }
 
   async function submit(formData: FormData) {
+    if (pending) return;
     setPending(true);
     setError(null);
-    const response = await fetch(`/api/collections/${collectionId}`, {
+    const response = await mutationRequest(`/api/collections/${collectionId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -60,9 +63,9 @@ export function EditCollectionButton({ collectionId, name, description, color }:
         <Pencil size={15} />{t("Edit")}
       </Button>
       {editing && (
-        <div className="fixed inset-0 z-[100] grid place-items-center bg-[rgb(26_25_20_/_55%)] p-[25px] backdrop-blur-[7px]" role="presentation" onClick={() => setEditing(false)}>
-          <section ref={dialogRef} className="relative w-[min(460px,100%)] rounded-[17px] bg-paper p-[30px] shadow-[0_30px_90px_rgb(0_0_0_/_28%)]" role="dialog" aria-modal="true" aria-labelledby="edit-collection-title" onClick={(event) => event.stopPropagation()}>
-            <button className="absolute right-4 top-4 grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-lg border-0 bg-[#f1ebdd] [&_svg]:w-4" type="button" onClick={() => setEditing(false)} aria-label={t("Close")}><X /></button>
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-[rgb(26_25_20_/_55%)] p-[25px] backdrop-blur-[7px]" role="presentation" onClick={close}>
+          <section ref={dialogRef} className="relative max-h-[calc(100dvh-50px)] w-[min(460px,100%)] overflow-y-auto rounded-[17px] bg-paper p-[30px] shadow-[0_30px_90px_rgb(0_0_0_/_28%)]" role="dialog" aria-modal="true" aria-labelledby="edit-collection-title" onClick={(event) => event.stopPropagation()}>
+            <button className="absolute right-4 top-4 grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-lg border-0 bg-[#f1ebdd] [&_svg]:w-4" type="button" disabled={pending} onClick={close} aria-label={t("Close")}><X /></button>
             <p className="eyebrow m-0">{t("EDIT COLLECTION")}</p>
             <h2 className="mb-[22px] mt-[7px] font-display text-[29px] tracking-[-0.015em]" id="edit-collection-title">{t("Refine this collection.")}</h2>
             <form className="grid gap-[14px]" action={submit}>

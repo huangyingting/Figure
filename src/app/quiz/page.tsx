@@ -7,8 +7,7 @@ import { ProductShell } from "@/components/product-shell";
 import { QuizFigureBrowser } from "@/components/quiz-figure-browser";
 import { QuizRunner } from "@/components/quiz-runner";
 import { Button, EmptyState, Page, PageHeader } from "@/components/ui";
-import { parseStoredAnnotation } from "@/lib/annotations";
-import { localizedDemoResult, localizeDemoFigure } from "@/lib/demo-data";
+import { localizedDemoResult, storedFigureAnnotation } from "@/lib/demo-data";
 import { prisma } from "@/lib/prisma";
 import {
   browseQuizFigures,
@@ -46,10 +45,11 @@ export default async function QuizPage({
     const requestedFigure = requested
       ? await getQuizFigure(null, requested)
       : null;
-    const quiz = requestedFigure
-      ? requestedFigure.id === demoResult.id
-        ? { figureId: requestedFigure.id, title: demoResult.annotation.title, parts: demoResult.annotation.parts, imageSrc: undefined }
-        : { figureId: requestedFigure.id, title: requestedFigure.title, parts: parseStoredAnnotation(requestedFigure.annotationJson).parts, imageSrc: undefined }
+    const requestedAnnotation = requestedFigure
+      ? storedFigureAnnotation(requestedFigure.id, requestedFigure.annotationJson, locale)
+      : null;
+    const quiz = requestedFigure && requestedAnnotation
+      ? { figureId: requestedFigure.id, title: requestedAnnotation.title, parts: requestedAnnotation.parts, imageSrc: undefined }
       : { figureId: demoResult.id, title: demoResult.annotation.title, parts: demoResult.annotation.parts, imageSrc: demoResult.image.src };
     const demoMatches = `${demoResult.annotation.title} Inside a centrifugal pump`
       .toLowerCase()
@@ -91,12 +91,14 @@ export default async function QuizPage({
 
   let selected = await getQuizFigure(viewerId, requested);
   if (!selected && requested) selected = await getQuizFigure(viewerId);
-  const selectedDisplay = selected ? localizeDemoFigure(selected, locale) : null;
-  const selectedParts = selected
-    ? selected.id === demoResult.id
-      ? demoResult.annotation.parts
-      : parseStoredAnnotation(selected.annotationJson).parts
-    : [];
+  const selectedAnnotation = selected
+    ? storedFigureAnnotation(selected.id, selected.annotationJson, locale)
+    : null;
+  const selectedDisplay = selected && selectedAnnotation
+    ? { ...selected, title: selectedAnnotation.title }
+    : null;
+  const selectedParts = selectedAnnotation?.parts ?? [];
+  const accessibleFigure = { OR: [{ isPublic: true }, { ownerId: viewerId }] };
   // Per-part accuracy comes from the normalized QuizAnswer rows, so "which
   // components do I keep missing" is a single grouped query.
   const answerRows = selected
@@ -112,16 +114,16 @@ export default async function QuizPage({
       selectedParts.map((part) => ({ id: part.id, name: part.name })),
     ),
   );
-  const attempts = await prisma.quizAttempt.findMany({ where: { userId: viewerId }, orderBy: { completedAt: "desc" }, take: 5, include: { figure: { select: { title: true } } } });
+  const attempts = await prisma.quizAttempt.findMany({ where: { userId: viewerId, figure: accessibleFigure }, orderBy: { completedAt: "desc" }, take: 5, include: { figure: { select: { title: true } } } });
   const masteryGroups = await prisma.quizAttempt.groupBy({
     by: ["figureId"],
-    where: { userId: viewerId },
+    where: { userId: viewerId, figure: accessibleFigure },
     _max: { score: true },
     _count: { _all: true },
     _sum: { score: true, total: true },
   });
   const masteryFigures = masteryGroups.length
-    ? await prisma.figure.findMany({ where: { id: { in: masteryGroups.map((group) => group.figureId) } }, select: { id: true, title: true } })
+    ? await prisma.figure.findMany({ where: { id: { in: masteryGroups.map((group) => group.figureId) }, ...accessibleFigure }, select: { id: true, title: true } })
     : [];
   const masteryTitles = new Map(masteryFigures.map((figure) => [figure.id, figure.title]));
   const mastery = masteryGroups

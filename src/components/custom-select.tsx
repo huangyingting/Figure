@@ -13,12 +13,14 @@ export function CustomSelect({
   options,
   onChange,
   compact = false,
+  disabled = false,
 }: {
   label: string;
   value: string;
   options: SelectOption[];
   onChange: (value: string) => void;
   compact?: boolean;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(Math.max(0, options.findIndex((option) => option.value === value)));
@@ -44,19 +46,28 @@ export function CustomSelect({
   }
 
   return (
-    <div className={cn("relative min-w-[188px]", open && "z-[80]")} ref={root}>
+    <div className={cn("relative min-w-[188px]", open && "z-[80]")} ref={root} onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+    }}>
       <button
         type="button"
+        role="combobox"
+        disabled={disabled}
         className={cn(
           "flex w-full items-center justify-between gap-4 rounded-[9px] border border-line-dark bg-paper py-2 pl-[14px] pr-3 text-left text-ink cursor-pointer",
           compact ? "min-h-[40px]" : "min-h-[48px]",
         )}
         aria-haspopup="listbox"
+        aria-label={label}
         aria-expanded={open}
         aria-controls={listId}
         aria-activedescendant={open ? optionId(active) : undefined}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => {
+          if (!open) setActive(Math.max(0, options.findIndex((option) => option.value === value)));
+          setOpen((current) => !current);
+        }}
         onKeyDown={(event) => {
+          if (!options.length) return;
           if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();
             const delta = event.key === "ArrowDown" ? 1 : -1;
@@ -67,7 +78,7 @@ export function CustomSelect({
             event.preventDefault();
             setActive(event.key === "Home" ? 0 : options.length - 1);
             setOpen(true);
-          } else if (event.key === "Enter" && open) {
+          } else if ((event.key === "Enter" || event.key === " ") && open) {
             event.preventDefault(); choose(active);
           } else if (event.key === "Escape") setOpen(false);
         }}
@@ -78,7 +89,7 @@ export function CustomSelect({
         </span>
         <ChevronDown size={16} aria-hidden className={cn("text-pine transition-transform duration-[180ms]", open && "rotate-180")} />
       </button>
-      {open && (
+      {open && !disabled && (
         <div
           className="absolute right-0 top-[calc(100%+7px)] z-[80] min-w-full overflow-hidden rounded-[11px] border border-line bg-paper p-[6px] shadow-[0_20px_55px_rgb(35_33_27_/_16%)]"
           id={listId}
@@ -91,9 +102,11 @@ export function CustomSelect({
               key={option.value}
               id={optionId(index)}
               role="option"
+              tabIndex={-1}
               aria-selected={option.value === value}
               data-active={index === active}
               onMouseEnter={() => setActive(index)}
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => choose(index)}
               className="flex w-full min-h-[45px] items-center justify-between gap-[18px] rounded-[7px] px-[9px] py-[7px] text-left text-ink-2 cursor-pointer data-[active=true]:bg-pine-pale data-[active=true]:text-pine-dark"
             >

@@ -45,6 +45,7 @@ export function AnnotationCanvas({
   function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
     if (!editable || !draggingId) return;
     const bounds = event.currentTarget.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return;
     const x = Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width));
     const y = Math.min(1, Math.max(0, (event.clientY - bounds.top) / bounds.height));
     onAnchorChange?.(draggingId, { x, y });
@@ -76,13 +77,14 @@ export function AnnotationCanvas({
         priority
       />
       {showAnnotations && <svg
-        className={`absolute inset-0 w-full h-full overflow-visible [touch-action:none]${draggingId ? " cursor-grabbing" : ""}`}
+        className={`absolute inset-0 w-full h-full overflow-visible ${editable ? "[touch-action:none]" : "[touch-action:pan-y]"}${draggingId ? " cursor-grabbing" : ""}`}
         viewBox={`0 0 ${viewWidth} ${viewHeight}`}
-        role="img"
+        role="group"
         aria-label={editable ? t("Editable component locations, bounding boxes, and callout lines") : t("Component locations and callout lines")}
         onPointerMove={handlePointerMove}
         onPointerUp={() => setDraggingId(null)}
         onPointerCancel={() => setDraggingId(null)}
+        onLostPointerCapture={() => setDraggingId(null)}
       >
         {selected?.visible && (
           <rect
@@ -118,6 +120,7 @@ export function AnnotationCanvas({
                 className="group cursor-pointer outline-none [--marker:var(--color-pine)]"
                 data-selected={selectedPart}
                 role="button"
+                aria-pressed={selectedPart}
                 tabIndex={0}
                 aria-label={`${t("Select component")} ${part.name}`}
                 onClick={() => onSelect(part.id)}
@@ -148,15 +151,14 @@ export function AnnotationCanvas({
                 >
                   {shortLabel(part.name)}
                 </text>
-                {editable && (
-                  <circle
-                    className="fill-transparent cursor-grab active:cursor-grabbing"
-                    cx={anchorX}
-                    cy={anchorY}
-                    r="28"
-                    onPointerDown={(event) => startDragging(event, part.id)}
-                  />
-                )}
+                <circle
+                  className={editable ? "fill-transparent cursor-grab active:cursor-grabbing" : "fill-transparent cursor-pointer"}
+                  data-marker-target="true"
+                  cx={anchorX}
+                  cy={anchorY}
+                  r="28"
+                  onPointerDown={editable ? (event) => startDragging(event, part.id) : undefined}
+                />
                 <circle
                   className="fill-[var(--marker)] stroke-white [stroke-width:1.5] [vector-effect:non-scaling-stroke]"
                   cx={anchorX}

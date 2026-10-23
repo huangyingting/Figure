@@ -10,10 +10,10 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslator())("Sign in") };
 }
 
-export default async function SignInPage({ searchParams }: { searchParams: Promise<{ callbackUrl?: string; error?: string }> }) {
+export default async function SignInPage({ searchParams }: { searchParams: Promise<{ callbackUrl?: string | string[]; error?: string | string[] }> }) {
   const [params, t] = await Promise.all([searchParams, getTranslator()]);
-  const callbackUrl = safeCallbackUrl(params.callbackUrl);
-  const initialError = authErrorMessage(params.error);
+  const callbackUrl = safeCallbackUrl(Array.isArray(params.callbackUrl) ? params.callbackUrl[0] : params.callbackUrl);
+  const initialError = authErrorMessage(Array.isArray(params.error) ? params.error[0] : params.error);
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_20%_52%,rgb(28_107_82_/_13%),transparent_27rem),#f6f1e4] px-[max(40px,calc((100vw-1240px)/2))] max-[1100px]:px-[max(24px,calc((100vw-1240px)/2))] max-[760px]:px-[18px]">
       <header className="flex min-h-[80px] items-center border-b border-line"><FigureBrand /></header>

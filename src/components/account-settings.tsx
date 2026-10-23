@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useState } from "react";
 
 import { Button, Card, Field, FieldError, FieldSuccess, Input } from "@/components/ui";
+import { mutationRequest } from "@/components/mutation-request";
 import { useI18n } from "@/components/i18n-provider";
 
 export function AccountSettings({ name, email, hasPassword }: { name: string; email: string; hasPassword: boolean }) {
@@ -15,14 +16,15 @@ export function AccountSettings({ name, email, hasPassword }: { name: string; em
   const [passwordState, setPasswordState] = useState<{ pending: boolean; message: string | null; error: boolean }>({ pending: false, message: null, error: false });
 
   async function saveProfile(formData: FormData) {
+    if (profileState.pending) return;
     setProfileState({ pending: true, message: null, error: false });
-    const response = await fetch("/api/account", {
+    const response = await mutationRequest("/api/account", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: formData.get("name") }),
     });
     if (response.ok) {
-      await updateSession();
+      await updateSession().catch(() => undefined);
       router.refresh();
       setProfileState({ pending: false, message: t("Profile updated."), error: false });
     } else {
@@ -32,8 +34,9 @@ export function AccountSettings({ name, email, hasPassword }: { name: string; em
   }
 
   async function savePassword(formData: FormData) {
+    if (passwordState.pending) return;
     setPasswordState({ pending: true, message: null, error: false });
-    const response = await fetch("/api/account", {
+    const response = await mutationRequest("/api/account", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -44,6 +47,7 @@ export function AccountSettings({ name, email, hasPassword }: { name: string; em
     if (response.ok) {
       setPasswordState({ pending: false, message: t("Password updated."), error: false });
       (document.getElementById("password-form") as HTMLFormElement | null)?.reset();
+      router.refresh();
     } else {
       const body = (await response.json().catch(() => ({}))) as { error?: string };
       setPasswordState({ pending: false, message: t(body.error || "Could not update password."), error: true });
@@ -51,7 +55,7 @@ export function AccountSettings({ name, email, hasPassword }: { name: string; em
   }
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-5">
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
       <Card className="rounded-2xl border-line-dark p-[26px] shadow-none">
         <h2 className="m-0 font-display text-[20px] tracking-[-0.015em]">{t("Profile")}</h2>
         <p className="mt-[6px] mb-5 text-micro leading-[1.5] text-muted">{t("Your name appears on the figures you publish.")}</p>
@@ -61,7 +65,7 @@ export function AccountSettings({ name, email, hasPassword }: { name: string; em
           {profileState.message && (profileState.error
             ? <FieldError>{profileState.message}</FieldError>
             : <FieldSuccess>{profileState.message}</FieldSuccess>)}
-          <Button disabled={profileState.pending}>{profileState.pending ? t("Saving…") : t("Save profile")}</Button>
+          <Button type="submit" disabled={profileState.pending}>{profileState.pending ? t("Saving…") : t("Save profile")}</Button>
         </form>
       </Card>
 
@@ -74,7 +78,7 @@ export function AccountSettings({ name, email, hasPassword }: { name: string; em
           {passwordState.message && (passwordState.error
             ? <FieldError>{passwordState.message}</FieldError>
             : <FieldSuccess>{passwordState.message}</FieldSuccess>)}
-          <Button disabled={passwordState.pending}>{passwordState.pending ? t("Saving…") : hasPassword ? t("Update password") : t("Set password")}</Button>
+          <Button type="submit" disabled={passwordState.pending}>{passwordState.pending ? t("Saving…") : hasPassword ? t("Update password") : t("Set password")}</Button>
         </form>
       </Card>
     </div>

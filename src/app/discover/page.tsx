@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { DiscoverSort } from "@/components/discover-sort";
+import { normalizeDiscoverParams } from "@/components/discover-params";
 import { FigureCard, type FigureCardData } from "@/components/figure-card";
 import { ProductShell } from "@/components/product-shell";
 import { Button, EmptyState, Page, PageHeader } from "@/components/ui";
@@ -23,7 +24,7 @@ const sortOrders: Record<string, Prisma.FigureOrderByWithRelationInput[]> = {
   quizzed: [{ quizAttempts: { _count: "desc" } }, { createdAt: "desc" }],
 };
 
-export default async function DiscoverPage({ searchParams }: { searchParams: Promise<{ q?: string; sort?: string; page?: string }> }) {
+export default async function DiscoverPage({ searchParams }: { searchParams: Promise<{ q?: string | string[]; sort?: string | string[]; page?: string | string[] }> }) {
   const [session, t, locale] = await Promise.all([auth(), getTranslator(), getLocale()]);
   const demoResult = localizedDemoResult(locale);
   const sampleCard: FigureCardData = {
@@ -39,10 +40,8 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
     _count: { collections: 0, quizAttempts: 0 },
   };
   const signedIn = Boolean(session?.user?.id);
-  const { q = "", sort = "popular", page = "1" } = await searchParams;
-  const activeSort = sort in sortOrders ? sort : "popular";
+  const { q, sort: activeSort, page: currentPage } = normalizeDiscoverParams(await searchParams);
   const pageSize = 24;
-  const currentPage = Math.max(1, Number.parseInt(page, 10) || 1);
   const where = { isPublic: true, ...(q.trim() ? { OR: [{ title: { contains: q.trim() } }, { subject: { contains: q.trim() } }] } : {}) };
   const rows = await prisma.figure.findMany({
     where,

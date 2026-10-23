@@ -20,33 +20,48 @@ export function AuthForm({ mode, social, callbackUrl = "/library", initialError 
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [socialPending, setSocialPending] = useState<SocialProvider | null>(null);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(initialError ? t(initialError) : null);
   const hasSocial = social.google || social.facebook;
   const busy = pending || socialPending !== null;
 
-  function continueWith(provider: SocialProvider) {
+  async function continueWith(provider: SocialProvider) {
+    if (busy) return;
     setError(null);
     setSocialPending(provider);
-    void signIn(provider, { redirectTo: callbackUrl });
+    try {
+      await signIn(provider, { redirectTo: callbackUrl });
+    } catch {
+      setError(t("Sign in failed. Please try again."));
+      setSocialPending(null);
+    }
   }
 
   async function submit(formData: FormData) {
+    if (busy) return;
     setPending(true); setError(null);
-    const email = String(formData.get("email") || "");
-    const password = String(formData.get("password") || "");
-    if (mode === "register") {
-      const response = await fetch("/api/auth/register", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: formData.get("name"), email, password }),
-      });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({})) as { error?: string };
-        setError(t(payload.error || "Registration failed.")); setPending(false); return;
+    try {
+      const email = String(formData.get("email") || "");
+      const password = String(formData.get("password") || "");
+      if (mode === "register" && registeredEmail !== email) {
+        const response = await fetch("/api/auth/register", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: formData.get("name"), email, password }),
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({})) as { error?: string };
+          setError(t(payload.error || "Registration failed.")); return;
+        }
+        setRegisteredEmail(email);
       }
+      const result = await signIn("credentials", { email, password, redirect: false });
+      if (!result || result.error) { setError(t("Email or password is incorrect.")); return; }
+      router.push(callbackUrl); router.refresh();
+    } catch {
+      setError(t("Sign in failed. Please try again."));
+    } finally {
+      setPending(false);
     }
-    const result = await signIn("credentials", { email, password, redirect: false });
-    if (result?.error) { setError(t("Email or password is incorrect.")); setPending(false); return; }
-    router.push(callbackUrl); router.refresh();
   }
 
   return (
@@ -75,13 +90,13 @@ export function AuthForm({ mode, social, callbackUrl = "/library", initialError 
       )}
       {hasSocial && <Divider className="my-[15px]">{t("or use email")}</Divider>}
       <form action={submit} className="grid gap-3">
-        {mode === "register" && <Field label={t("Name")}><Input name="name" autoComplete="name" minLength={2} required placeholder="Ada Lovelace" disabled={busy} /></Field>}
-        <Field label={t("Email")}><Input name="email" type="email" autoComplete="email" required placeholder="you@example.com" disabled={busy} /></Field>
-        <Field label={t("Password")}><Input name="password" type="password" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} required placeholder={t("At least 8 characters")} disabled={busy} /></Field>
+        {mode === "register" && <Field label={t("Name")}><Input name="name" autoComplete="name" minLength={2} maxLength={60} required placeholder="Ada Lovelace" disabled={busy} /></Field>}
+        <Field label={t("Email")}><Input name="email" type="email" autoComplete="email" maxLength={254} required placeholder="you@example.com" disabled={busy} /></Field>
+        <Field label={t("Password")}><Input name="password" type="password" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} maxLength={128} required placeholder={t("At least 8 characters")} disabled={busy} /></Field>
         {error && <FieldError>{error}</FieldError>}
         <Button type="submit" className="w-full" disabled={busy}>{pending ? <LoaderCircle className="spin" size={17} /> : <ArrowRight size={17} />}{mode === "signin" ? t("Sign in") : t("Create free account")}</Button>
       </form>
-      <p className="mt-4 flex items-center justify-center gap-[6px] border-t border-line pt-[15px] text-ui text-muted">{mode === "signin" ? t("New to Figure?") : t("Already have an account?")} <Link href={mode === "signin" ? "/register" : "/signin"} className="font-bold text-pine-dark">{mode === "signin" ? t("Create an account") : t("Sign in")}</Link></p>
+      <p className="mt-4 flex items-center justify-center gap-[6px] border-t border-line pt-[15px] text-ui text-muted">{mode === "signin" ? t("New to Figure?") : t("Already have an account?")} <Link href={`${mode === "signin" ? "/register" : "/signin"}?${new URLSearchParams({ callbackUrl })}`} className="font-bold text-pine-dark">{mode === "signin" ? t("Create an account") : t("Sign in")}</Link></p>
     </div>
   );
 }
