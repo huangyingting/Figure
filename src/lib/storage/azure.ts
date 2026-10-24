@@ -1,5 +1,6 @@
 import { BlobServiceClient, StorageSharedKeyCredential } from "@azure/storage-blob";
 
+import { getApplicationConfig } from "@/lib/config";
 import { figureStorageKey } from "@/lib/storage/key";
 import type { FigureStorage } from "@/lib/storage/types";
 
@@ -7,17 +8,17 @@ export class AzureFigureStorage implements FigureStorage {
   readonly kind = "azure" as const;
 
   private service() {
-    if (process.env.AZURE_STORAGE_CONNECTION_STRING) {
-      return BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
+    const { storage } = getApplicationConfig();
+    if (storage.connectionString) {
+      return BlobServiceClient.fromConnectionString(storage.connectionString);
     }
-    const account = process.env.AZURE_STORAGE_ACCOUNT;
-    const key = process.env.AZURE_STORAGE_KEY;
+    const { account, key } = storage;
     if (!account || !key) throw new Error("Azure figure storage credentials are incomplete.");
     return new BlobServiceClient(`https://${account}.blob.core.windows.net`, new StorageSharedKeyCredential(account, key));
   }
 
   private async container() {
-    const container = this.service().getContainerClient(process.env.AZURE_STORAGE_CONTAINER || "figures");
+    const container = this.service().getContainerClient(getApplicationConfig().storage.container);
     await container.createIfNotExists();
     return container;
   }

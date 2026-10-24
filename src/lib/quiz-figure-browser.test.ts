@@ -13,8 +13,8 @@ import {
   browseQuizFigures,
   getQuizFigure,
   normalizeQuizFigureBrowserParams,
-  quizFigureHref,
 } from "@/lib/quiz-figure-browser";
+import { quizFigureHref } from "@/lib/quiz-figure-links";
 
 beforeEach(() => {
   vi.clearAllMocks();

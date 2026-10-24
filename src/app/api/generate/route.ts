@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 import { normalizeVisionPayload } from "@/lib/annotations";
+import { getAzureImageConfig, getAzureModelDeployments, UnknownImageModelError } from "@/lib/azure-config";
 import {
   AzureConfigurationError,
   generateAzureImage,
@@ -50,6 +51,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const input = GenerateDiagramRequestSchema.parse(await readJson(request, 64 * 1024));
+    getAzureImageConfig(input.imageModel);
     const remainingCredits = await consumeGenerationCredit(session.user.id, requestId);
     if (remainingCredits === null) {
       return NextResponse.json({ error: t("You need at least one credit to generate a figure."), code: "INSUFFICIENT_CREDITS", requestId }, { status: 402 });
@@ -62,6 +64,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const annotation = normalized.data;
 
     const stored = await getFigureStorage().put(dataUrlToBuffer(image.src), image.mimeType, session.user.id);
+    const models = getAzureModelDeployments(input.imageModel);
     const annotationJson = JSON.stringify(annotation);
     const figure = await prisma.figure.create({
       data: {
@@ -74,8 +77,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         imageMimeType: image.mimeType,
         imageWidth: image.width,
         imageHeight: image.height,
-        imageModel: input.imageModel,
-        visionModel: process.env.AZURE_VISION_DEPLOYMENT || "gpt-5.6-terra",
+        ...models,
         annotationJson,
         diagramType: input.diagramType,
         audience: input.audience,
@@ -96,8 +98,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       annotation,
       provenance: {
         source: "azure-generated",
-        imageModel: input.imageModel,
-        visionModel: process.env.AZURE_VISION_DEPLOYMENT || "gpt-5.6-terra",
+        ...models,
         generatedAt: new Date().toISOString(),
         reviewRequired: true,
         visualStyle: input.visualStyle,
@@ -130,10 +131,10 @@ export async function POST(request: Request): Promise<NextResponse> {
         { status: 413 },
       );
     }
-    if (error instanceof SyntaxError || error instanceof ZodError) {
+    if (error instanceof SyntaxError || error instanceof ZodError || error instanceof UnknownImageModelError) {
       return NextResponse.json(
         {
-          error: error instanceof ZodError ? zodMessage(error) : t("Invalid request."),
+          error: error instanceof ZodError ? zodMessage(error) : error instanceof UnknownImageModelError ? error.message : t("Invalid request."),
           code: "INVALID_REQUEST",
           requestId,
         },

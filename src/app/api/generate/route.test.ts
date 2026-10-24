@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../../../scripts/application-env.mjs", () => ({
+  readApplicationEnv: () => process.env,
+}));
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
@@ -11,10 +15,10 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
 vi.mock("@/lib/credits", () => ({ consumeGenerationCredit: mocks.consume, refundGenerationCredit: mocks.refund }));
-vi.mock("@/lib/azure-openai", () => ({
+vi.mock("@/lib/azure-openai", async () => ({
   generateAzureImage: mocks.generate,
   locateDiagramParts: mocks.locate,
-  AzureConfigurationError: class AzureConfigurationError extends Error {},
+  AzureConfigurationError: (await import("@/lib/azure-config")).AzureConfigurationError,
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: { figure: { create: mocks.create } } }));
 vi.mock("@/lib/storage", () => ({
@@ -37,6 +41,12 @@ function request(body: string = JSON.stringify(input)) {
 }
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.stubEnv("AZURE_IMAGE_MODELS", JSON.stringify([{
+    id: input.imageModel, label: "Test image", api: "openai",
+    endpoint: "https://image.example.com", deployment: "custom-image-deployment",
+  }]));
+  vi.stubEnv("AZURE_IMAGE_MODEL", "");
+  vi.stubEnv("AZURE_VISION_DEPLOYMENT", " custom-vision-deployment ");
   mocks.auth.mockResolvedValue({ user: { id: "owner" } });
   mocks.consume.mockResolvedValue(11);
   mocks.refund.mockResolvedValue(undefined);
@@ -46,6 +56,8 @@ beforeEach(() => {
   mocks.create.mockResolvedValue({ id: "saved-figure" });
 });
 
+afterEach(() => vi.unstubAllEnvs());
+
 describe("figure generation lifecycle", () => {
   it("saves an image, coherent annotation and initial revision after charging once", async () => {
     const response = await POST(request());
@@ -53,12 +65,17 @@ describe("figure generation lifecycle", () => {
     const result = await response.json();
     expect(result.image.src).toBe("/api/figures/saved-figure/image");
     expect(result.provenance.visualStyle).toBe("isometric");
+    expect(result.provenance).toMatchObject({
+      imageModel: "custom-image-deployment", visionModel: "custom-vision-deployment",
+    });
     expect(response.headers.get("x-credits-remaining")).toBe("11");
     expect(mocks.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         ownerId: "owner",
         imageKey: "test-image",
         visualStyle: "isometric",
+        imageModel: "custom-image-deployment",
+        visionModel: "custom-vision-deployment",
         revisions: { create: { source: "ai-draft", annotationJson: expect.any(String) } },
       }),
     });
@@ -76,6 +93,38 @@ describe("figure generation lifecycle", () => {
     expect((await POST(request())).status).toBe(402);
     expect(mocks.generate).not.toHaveBeenCalled();
     expect(mocks.refund).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unknown model ID before charging or contacting providers", async () => {
+    expect((await POST(request(JSON.stringify({ ...input, imageModel: "not-configured" })))).status).toBe(400);
+    expect(mocks.consume).not.toHaveBeenCalled();
+    expect(mocks.generate).not.toHaveBeenCalled();
+    expect(mocks.refund).not.toHaveBeenCalled();
+  });
+
+  it("reports an invalid registry without charging or contacting providers", async () => {
+    vi.stubEnv("AZURE_IMAGE_MODELS", "invalid-json");
+    const response = await POST(request());
+    expect(response.status).toBe(503);
+    expect((await response.json()).code).toBe("AZURE_NOT_CONFIGURED");
+    expect(mocks.consume).not.toHaveBeenCalled();
+    expect(mocks.generate).not.toHaveBeenCalled();
+    expect(mocks.refund).not.toHaveBeenCalled();
+  });
+
+  it("saves the configured deployment for an arbitrary registry ID", async () => {
+    vi.stubEnv("AZURE_IMAGE_MODELS", JSON.stringify([{
+      id: "custom-image", label: "Custom image", api: "openai",
+      endpoint: "https://custom.example.com", deployment: "arbitrary-deployment",
+      authMode: "entra",
+    }]));
+    const response = await POST(request(JSON.stringify({ ...input, imageModel: "custom-image" })));
+    expect(response.status).toBe(200);
+    expect((await response.json()).provenance.imageModel).toBe("arbitrary-deployment");
+    expect(mocks.generate).toHaveBeenCalledWith(expect.objectContaining({ imageModel: "custom-image" }));
+    expect(mocks.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ imageModel: "arbitrary-deployment" }),
+    });
   });
 
   it("refunds missing configuration rather than leaving a charge", async () => {

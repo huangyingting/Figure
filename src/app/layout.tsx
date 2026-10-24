@@ -4,6 +4,7 @@ import "@fontsource-variable/inter";
 import "@fontsource-variable/space-grotesk";
 import "./globals.css";
 import { Providers } from "@/app/providers";
+import { getApplicationConfig } from "@/lib/config";
 import { getLocale } from "@/lib/i18n";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -13,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
     ? "创建、收藏并掌握 AI 生成的标注图解。"
     : "Create, collect, and master AI-generated annotated figures.";
   return {
-    metadataBase: new URL((process.env.AUTH_URL || "http://localhost:3000").replace(/\/+$/, "")),
+    metadataBase: new URL(getApplicationConfig().siteUrl),
     title: { default: title, template: "%s · Figure" },
     description,
     openGraph: { title, description, siteName: "Figure", type: "website" },

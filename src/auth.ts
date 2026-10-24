@@ -7,6 +7,7 @@ import { compare } from "bcryptjs";
 import { z } from "zod";
 
 import { authConfig } from "@/auth.config";
+import { getApplicationConfig } from "@/lib/config";
 import { SIGNUP_CREDIT_ENTRY } from "@/lib/credits";
 import { prisma } from "@/lib/prisma";
 import { clientIp, peekRateLimit, rateLimit } from "@/lib/rate-limit";
@@ -15,6 +16,8 @@ const credentialsSchema = z.object({
   email: z.string().trim().email().transform((value) => value.toLowerCase()),
   password: z.string().min(8).max(128),
 });
+
+const config = getApplicationConfig();
 
 const providers = [
   Credentials({
@@ -41,16 +44,17 @@ const providers = [
       return { id: user.id, email: user.email, name: user.name, image: user.image };
     },
   }),
-  ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
-    ? [Google({ clientId: process.env.AUTH_GOOGLE_ID, clientSecret: process.env.AUTH_GOOGLE_SECRET, allowDangerousEmailAccountLinking: true })]
+  ...(config.auth.googleId && config.auth.googleSecret
+    ? [Google({ clientId: config.auth.googleId, clientSecret: config.auth.googleSecret, allowDangerousEmailAccountLinking: true })]
     : []),
-  ...(process.env.AUTH_FACEBOOK_ID && process.env.AUTH_FACEBOOK_SECRET
-    ? [Facebook({ clientId: process.env.AUTH_FACEBOOK_ID, clientSecret: process.env.AUTH_FACEBOOK_SECRET, allowDangerousEmailAccountLinking: true })]
+  ...(config.auth.facebookId && config.auth.facebookSecret
+    ? [Facebook({ clientId: config.auth.facebookId, clientSecret: config.auth.facebookSecret, allowDangerousEmailAccountLinking: true })]
     : []),
 ];
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
+  secret: config.auth.secret,
   adapter: {
     ...PrismaAdapter(prisma),
     async createUser({ name, email, emailVerified, image }) {
@@ -87,7 +91,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
 export function configuredSocialProviders() {
   return {
-    google: Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET),
-    facebook: Boolean(process.env.AUTH_FACEBOOK_ID && process.env.AUTH_FACEBOOK_SECRET),
+    google: Boolean(config.auth.googleId && config.auth.googleSecret),
+    facebook: Boolean(config.auth.facebookId && config.auth.facebookSecret),
   };
 }

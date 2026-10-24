@@ -1,21 +1,27 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import sharp from "sharp";
 
 import {
   generateAzureImage,
   getAzureStatus,
+  locateDiagramParts,
   normalizeAzureBaseURL,
   normalizeMaiImageURL,
   planDiagramParts,
 } from "@/lib/azure-openai";
 import type { GenerateDiagramRequest } from "@/lib/contracts";
 
+vi.mock("../../scripts/application-env.mjs", () => ({
+  readApplicationEnv: () => process.env,
+  loadApplicationEnv: () => process.env,
+}));
+
 const baseRequest: GenerateDiagramRequest = {
   subject: "A pump cutaway",
   locale: "en",
   diagramType: "cutaway",
   audience: "students",
-  imageModel: "gpt-image-2",
+  imageModel: "primary",
   visualStyle: "isometric",
   parts: [
     { id: "case", name: "case", description: "outer case" },
@@ -42,9 +48,23 @@ async function whitePngBase64(): Promise<string> {
   return image.toString("base64");
 }
 
+beforeEach(() => {
+  for (const key of Object.keys(process.env).filter((key) => key.startsWith("AZURE_"))) {
+    vi.stubEnv(key, "");
+  }
+  vi.stubEnv("AZURE_IMAGE_MODELS", JSON.stringify([{
+    id: "primary", label: "Primary image", api: "openai",
+    endpoint: "https://image.example.com", deployment: "configured-image",
+    apiKeyEnv: "AZURE_IMAGE_KEY",
+  }]));
+  vi.stubEnv("AZURE_IMAGE_KEY", "test-key");
+  vi.stubEnv("AZURE_VISION_DEPLOYMENT", "configured-vision");
+});
+
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("Azure endpoint normalization", () => {
@@ -69,13 +89,11 @@ describe("Azure endpoint normalization", () => {
   });
 
   it("sends MAI width and height to its provider-specific endpoint", async () => {
-    vi.stubEnv(
-      "AZURE_MAI_IMAGE_ENDPOINT",
-      "https://example.services.ai.azure.com",
-    );
-    vi.stubEnv("AZURE_MAI_IMAGE_API_KEY", "test-key");
-    vi.stubEnv("AZURE_MAI_IMAGE_DEPLOYMENT", "mai-diagram");
-    vi.stubEnv("AZURE_MAI_IMAGE_SIZE", "1024x1024");
+    vi.stubEnv("AZURE_IMAGE_MODELS", JSON.stringify([{
+      id: "editorial", label: "Editorial", api: "mai",
+      endpoint: "https://example.services.ai.azure.com", deployment: "mai-diagram",
+      apiKeyEnv: "AZURE_IMAGE_KEY", size: "1024x1024",
+    }]));
     const imageData = await whitePngBase64();
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ data: [{ b64_json: imageData }] }), {
@@ -87,7 +105,7 @@ describe("Azure endpoint normalization", () => {
 
     const image = await generateAzureImage({
       ...baseRequest,
-      imageModel: "mai-image-2.5",
+      imageModel: "editorial",
     });
 
     expect(image.src).toMatch(/^data:image\/png;base64,/);
@@ -104,14 +122,12 @@ describe("Azure endpoint normalization", () => {
     });
   });
 
-  it("adds the Azure preview query to gpt-image-2 requests", async () => {
-    vi.stubEnv(
-      "AZURE_GPT_IMAGE_ENDPOINT",
-      "https://example.openai.azure.com",
-    );
-    vi.stubEnv("AZURE_GPT_IMAGE_API_KEY", "test-key");
-    vi.stubEnv("AZURE_GPT_IMAGE_DEPLOYMENT", "gpt-image-diagram");
-    vi.stubEnv("AZURE_GPT_IMAGE_SIZE", "1024x1024");
+  it("adds the Azure preview query to OpenAI image requests", async () => {
+    vi.stubEnv("AZURE_IMAGE_MODELS", JSON.stringify([{
+      id: "primary", label: "Primary", api: "openai",
+      endpoint: "https://example.openai.azure.com", deployment: "gpt-image-diagram",
+      apiKeyEnv: "AZURE_IMAGE_KEY", size: "1024x1024",
+    }]));
     const imageData = await whitePngBase64();
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ data: [{ b64_json: imageData }] }), {
@@ -129,6 +145,154 @@ describe("Azure endpoint normalization", () => {
     const url = request instanceof Request ? request.url : String(request);
     expect(url).toContain("/openai/v1/images/generations");
     expect(url).toContain("api-version=preview");
+    const [, options] = fetchMock.mock.calls[0] as [unknown, RequestInit];
+    expect(JSON.parse(String(options.body))).toMatchObject({ model: "gpt-image-diagram" });
+  });
+
+  it("preserves MAI HTTP failures for credential-safe connectivity reports", async () => {
+    vi.stubEnv("AZURE_AUTH_MODE", "api-key");
+    vi.stubEnv("AZURE_IMAGE_MODELS", JSON.stringify([{
+      id: "editorial", label: "Editorial", api: "mai",
+      endpoint: "https://failure.services.ai.azure.com", deployment: "custom-mai",
+      apiKeyEnv: "AZURE_IMAGE_KEY",
+    }]));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 400 })));
+    await expect(generateAzureImage({ ...baseRequest, imageModel: "editorial" }))
+      .rejects.toMatchObject({ status: 400 });
+  });
+
+  it.each(["responses", "chat-completions"])("uses the configured vision deployment for planning and grounding with %s", async (api) => {
+    vi.stubEnv("AZURE_OPENAI_ENDPOINT", "https://custom.example.openai.azure.com");
+    vi.stubEnv("AZURE_OPENAI_API_KEY", "key");
+    vi.stubEnv("AZURE_VISION_DEPLOYMENT", "arbitrary-vision-deployment");
+    vi.stubEnv("AZURE_VISION_API", api);
+    const plan = {
+      title: "Pump", diagramType: "cutaway", audience: "learners", visualDirection: "A pump.",
+      parts: ["case", "shaft", "seal", "rotor"].map((id) => ({ id, name: id, description: id })),
+    };
+    const annotation = { title: "Pump", summary: "A pump.", parts: [], warnings: [] };
+    const payload = (value: unknown) => api === "chat-completions"
+      ? { choices: [{ message: { content: JSON.stringify(value) } }] }
+      : { object: "response", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: JSON.stringify(value) }] }] };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(payload(plan)), { headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(payload(annotation)), { headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect((await planDiagramParts(planRequest)).title).toBe("Pump");
+    expect((await locateDiagramParts(baseRequest, "data:image/png;base64,aW1hZ2U=")).title).toBe("Pump");
+    for (const [, options] of fetchMock.mock.calls as [unknown, RequestInit][]) {
+      expect(JSON.parse(String(options.body)).model).toBe("arbitrary-vision-deployment");
+    }
+  });
+
+  it("reports configured deployments and the selected default without exposing credentials", () => {
+    vi.stubEnv("AZURE_OPENAI_ENDPOINT", "https://custom.services.ai.azure.com");
+    vi.stubEnv("AZURE_OPENAI_API_KEY", "private-test-key");
+    vi.stubEnv("AZURE_IMAGE_MODELS", JSON.stringify([
+      {
+        id: "primary", label: "Primary image", api: "openai",
+        endpoint: "https://primary.example.com", deployment: "configured-image", apiKeyEnv: "AZURE_OPENAI_API_KEY",
+      },
+      {
+        id: "editorial", label: "Editorial", api: "mai",
+        endpoint: "https://editorial.services.ai.azure.com", deployment: "custom-mai", apiKeyEnv: "AZURE_OPENAI_API_KEY",
+      },
+    ]));
+    vi.stubEnv("AZURE_IMAGE_MODEL", "editorial");
+    const status = getAzureStatus();
+    expect(status).toMatchObject({
+      configured: true, defaultImageModel: "editorial",
+      deployments: { vision: "configured-vision" },
+    });
+    expect(status.imageModels).toEqual([
+      { id: "primary", label: "Primary image", api: "openai", deployment: "configured-image", configured: true },
+      { id: "editorial", label: "Editorial", api: "mai", deployment: "custom-mai", configured: true },
+    ]);
+    expect(JSON.stringify(status)).not.toContain("private-test-key");
+    expect(JSON.stringify(status)).not.toContain("https://");
+  });
+
+  it("rejects a missing image deployment before calling the provider", async () => {
+    vi.stubEnv("AZURE_OPENAI_ENDPOINT", "https://custom.example.openai.azure.com");
+    vi.stubEnv("AZURE_OPENAI_API_KEY", "key");
+    vi.stubEnv("AZURE_IMAGE_MODELS", JSON.stringify([{
+      id: "primary", label: "Primary", api: "openai",
+      endpoint: "https://image.example.com", deployment: "", apiKeyEnv: "AZURE_IMAGE_KEY",
+    }]));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(generateAzureImage(baseRequest)).rejects.toThrow("invalid or duplicate model definitions");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("routes multiple OpenAI image models to their own endpoints, deployments, credentials and settings", async () => {
+    vi.stubEnv("AZURE_AUTH_MODE", "entra");
+    vi.stubEnv("REGISTRY_FAST_KEY", "fast-key");
+    vi.stubEnv("AZURE_IMAGE_MODELS", JSON.stringify([
+      {
+        id: "fast", label: "Fast", api: "openai",
+        endpoint: "https://fast.registry.openai.azure.com", deployment: "fast-deployment",
+        apiKeyEnv: "REGISTRY_FAST_KEY", authMode: "api-key", quality: "low", size: "1024x1024",
+      },
+      {
+        id: "detailed", label: "Detailed", api: "openai",
+        endpoint: "https://detail.registry.openai.azure.com", deployment: "detail-deployment",
+        authMode: "entra", quality: "high", size: "1024x1536",
+      },
+    ]));
+    const imageData = await whitePngBase64();
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(
+      JSON.stringify({ data: [{ b64_json: imageData }] }),
+      { headers: { "Content-Type": "application/json" } },
+    )));
+    vi.stubGlobal("fetch", fetchMock);
+    await generateAzureImage({ ...baseRequest, imageModel: "fast" });
+    await generateAzureImage({ ...baseRequest, imageModel: "detailed" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const [index, expected] of [
+      { host: "fast.registry.openai.azure.com", deployment: "fast-deployment", token: "fast-key", quality: "low", size: "1024x1024" },
+      { host: "detail.registry.openai.azure.com", deployment: "detail-deployment", token: "entra-test-token", quality: "high", size: "1024x1536" },
+    ].entries()) {
+      const [request, options] = fetchMock.mock.calls[index] as [Request | string, RequestInit];
+      const url = new URL(request instanceof Request ? request.url : request);
+      expect(url.host).toBe(expected.host);
+      expect(JSON.parse(String(options.body))).toMatchObject({
+        model: expected.deployment, size: expected.size, quality: expected.quality,
+      });
+      expect(new Headers(options.headers).get("authorization")).toBe(`Bearer ${expected.token}`);
+    }
+  });
+
+  it("selects the MAI protocol from registry configuration rather than a special model ID", async () => {
+    vi.stubEnv("REGISTRY_MAI_KEY", "registry-mai-key");
+    vi.stubEnv("AZURE_IMAGE_MODELS", JSON.stringify([{
+      id: "editorial", label: "Editorial", api: "mai",
+      endpoint: "https://editorial.registry.services.ai.azure.com", deployment: "custom-editorial",
+      apiKeyEnv: "REGISTRY_MAI_KEY", authMode: "api-key", size: "1536x1024", timeoutMs: 120_000,
+    }]));
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const imageData = await whitePngBase64();
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ data: [{ b64_json: imageData }] }),
+      { headers: { "Content-Type": "application/json" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+    await generateAzureImage({ ...baseRequest, imageModel: "editorial" });
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://editorial.registry.services.ai.azure.com/mai/v1/images/generations");
+    expect(options.headers).toMatchObject({ "api-key": "registry-mai-key" });
+    expect(JSON.parse(String(options.body))).toMatchObject({
+      model: "custom-editorial", width: 1536, height: 1024,
+    });
+    expect(timeout).toHaveBeenCalledWith(120_000);
+  });
+
+  it("rejects unknown model IDs without sending a request", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(generateAzureImage({ ...baseRequest, imageModel: "unknown-model" }))
+      .rejects.toThrow("selected image model is not configured");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("uses Microsoft Entra ID for a keyless deployment", async () => {
@@ -153,8 +317,11 @@ describe("Azure endpoint normalization", () => {
 
   it("switches to Entra ID only when the resource explicitly disables key authentication", async () => {
     vi.stubEnv("AZURE_AUTH_MODE", "auto");
-    vi.stubEnv("AZURE_GPT_IMAGE_ENDPOINT", "https://fallback.example.openai.azure.com");
-    vi.stubEnv("AZURE_GPT_IMAGE_API_KEY", "old-key");
+    vi.stubEnv("AZURE_IMAGE_MODELS", JSON.stringify([{
+      id: "primary", label: "Primary", api: "openai",
+      endpoint: "https://fallback.example.openai.azure.com", deployment: "configured-image",
+      apiKeyEnv: "AZURE_IMAGE_KEY",
+    }]));
     const imageData = await whitePngBase64();
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: {

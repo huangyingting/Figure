@@ -1,8 +1,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import path from "node:path";
 
+import { loadApplicationEnv } from "./application-env.mjs";
 import { normalizeVisionPayload } from "../src/lib/annotations";
+import { getAzureConfig, getAzureModelDeployments } from "../src/lib/azure-config";
 import {
   generateAzureImage,
   locateDiagramParts,
@@ -12,17 +13,11 @@ import type {
   GenerateDiagramRequest,
 } from "../src/lib/contracts";
 
-const require = createRequire(import.meta.url);
-const { loadEnvConfig } = require("@next/env") as {
-  loadEnvConfig: (directory: string) => unknown;
-};
-
-const demoRequest: GenerateDiagramRequest = {
+const demoBrief: Omit<GenerateDiagramRequest, "imageModel"> = {
   locale: "en",
   subject: "Inside a single-stage end-suction centrifugal pump",
   diagramType: "cutaway",
   audience: "curious adult learners and engineering students",
-  imageModel: "gpt-image-2",
   visualStyle: "isometric",
   visualDirection:
     "Create a stylish isometric cutaway of one physically plausible centrifugal pump. Use a clean orthographic view from slightly above: the large inlet flange faces left, the discharge flange rises vertically, the impeller sits visibly inside the volute, and the shaft, mechanical seal, and bearing housing extend to the right. Use a sculpted teal casing with a precise section removed, a warm coral-orange impeller, a graphite shaft, and subtle sage accents. Preserve crisp component separation and physical relationships. Do not include a motor, attached piping, mounting floor, scenery, labels, arrows, text, or a drop shadow.",
@@ -79,7 +74,11 @@ function dataUrlBytes(src: string): Buffer {
 }
 
 async function main(): Promise<void> {
-  loadEnvConfig(process.cwd());
+  loadApplicationEnv();
+  const demoRequest: GenerateDiagramRequest = {
+    ...demoBrief,
+    imageModel: getAzureConfig().defaultImageModel,
+  };
 
   console.log("Generating the transparent pump demo…");
   const image = await generateAzureImage(demoRequest);
@@ -103,8 +102,7 @@ async function main(): Promise<void> {
     },
     provenance: {
       source: "offline-demo",
-      imageModel: demoRequest.imageModel,
-      visionModel: process.env.AZURE_VISION_DEPLOYMENT || "gpt-5.6-terra",
+      ...getAzureModelDeployments(demoRequest.imageModel),
       generatedAt: new Date().toISOString(),
       reviewRequired: true,
       visualStyle: demoRequest.visualStyle,

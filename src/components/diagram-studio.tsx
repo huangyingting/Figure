@@ -10,6 +10,7 @@ import { AppHeader, type HeaderUser } from "@/components/app-header";
 import { CustomSelect } from "@/components/custom-select";
 import { useI18n } from "@/components/i18n-provider";
 import { VisualStyleSelect, visualStyleLabels } from "@/components/visual-style-select";
+import { ImageModelSchema } from "@/lib/contracts";
 import type {
   AnnotatedPart,
   AzureStatus,
@@ -94,7 +95,7 @@ export function DiagramStudio({
   const { data: session, update: updateSession } = useSession();
   const [result, setResult] = useState<DiagramResult>(() => previewDemoResult(locale));
   const [subject, setSubject] = useState(initialSubject ?? (locale === "zh-CN" ? "离心泵内部结构" : "Inside a centrifugal pump"));
-  const [imageModel, setImageModel] = useState<ImageModel>("gpt-image-2");
+  const [imageModel, setImageModel] = useState<ImageModel | null>(null);
   const [visualStyle, setVisualStyle] = useState<VisualStyle>("isometric");
   const [selectedId, setSelectedId] = useState<string | null>("impeller");
   const [status, setStatus] = useState<AzureStatus | null>(null);
@@ -120,9 +121,7 @@ export function DiagramStudio({
       .then((data) => {
         if (!active) return;
         setStatus(data);
-        if (!data.imageModels["gpt-image-2"] && data.imageModels["mai-image-2.5"]) {
-          setImageModel("mai-image-2.5");
-        }
+        setImageModel((current) => current ?? data.defaultImageModel);
       })
       .catch(() => {
         if (active) { setStatus(null); setStatusUnavailable(true); }
@@ -150,7 +149,7 @@ export function DiagramStudio({
   }, []);
 
   const isGenerating = stage === "planning" || stage === "rendering";
-  const selectedModelReady = status?.imageModels[imageModel] ?? false;
+  const selectedModelReady = status?.imageModels.find((model) => model.id === imageModel)?.configured ?? false;
   const canGenerate = Boolean(session?.user?.id && status?.visionConfigured && selectedModelReady);
   // Seed the header from the server prop for a flicker-free first paint, then let the
   // live session take over so credit changes after a generation are reflected.
@@ -190,7 +189,7 @@ export function DiagramStudio({
   }
 
   async function generate() {
-    if (isGenerating || saving || !canGenerate) return;
+    if (isGenerating || saving || !canGenerate || !imageModel) return;
     const cleanSubject = subject.trim();
     if (cleanSubject.length < 2) {
       setError(t("Enter a topic with at least two characters."));
@@ -584,12 +583,14 @@ export function DiagramStudio({
                 <CustomSelect
                   compact
                   label={t("Image model")}
-                  value={imageModel}
-                  onChange={(value) => setImageModel(value as ImageModel)}
-                  options={[
-                    { value: "gpt-image-2", label: "GPT Image 2", hint: status?.imageModels["gpt-image-2"] ? t("Ready") : t("Not configured") },
-                    { value: "mai-image-2.5", label: "MAI Image 2.5", hint: status?.imageModels["mai-image-2.5"] ? t("Ready") : t("Not configured") },
-                  ]}
+                  value={imageModel ?? ""}
+                  disabled={!status || isGenerating}
+                  onChange={(value) => setImageModel(ImageModelSchema.parse(value))}
+                  options={status?.imageModels.map((model) => ({
+                    value: model.id,
+                    label: model.label,
+                    hint: model.configured ? t("Ready") : t("Not configured"),
+                  })) ?? []}
                 />
               </div>
             )}
@@ -612,7 +613,7 @@ export function DiagramStudio({
             )}
             {session?.user && !canGenerate && status !== null && (
               <p className="mx-1 mt-[11px] text-ui leading-[1.55] text-muted">
-                {t("Add Azure credentials to")} <code className="font-display text-pine-dark">.env.local</code>{" "}
+                {t("Add Azure credentials to")} <code className="font-display text-pine-dark">.env</code>{" "}
                 {t("to enable live generation. The curated sample below remains fully interactive.")}
               </p>
             )}

@@ -38,6 +38,7 @@ export default defineConfig({
     command: "node --import tsx e2e/server.ts",
     url: `${origin}/api/status`,
     reuseExistingServer: false,
+    gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
     timeout: 120_000,
     env: {
       NEXT_TELEMETRY_DISABLED: "1",

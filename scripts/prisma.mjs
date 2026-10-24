@@ -3,9 +3,9 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
 
-import nextEnv from "@next/env";
+import { loadApplicationEnv } from "./application-env.mjs";
 
-nextEnv.loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production");
+loadApplicationEnv();
 const require = createRequire(import.meta.url);
 const cli = path.join(path.dirname(require.resolve("prisma/package.json")), "build/index.js");
 const result = spawnSync(process.execPath, [cli, ...process.argv.slice(2)], {

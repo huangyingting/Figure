@@ -1,8 +1,8 @@
 import type { MetadataRoute } from "next";
 
-function baseUrl(): string {
-  return (process.env.AUTH_URL || "http://localhost:3000").replace(/\/+$/, "");
-}
+import { getApplicationConfig } from "@/lib/config";
+
+export const dynamic = "force-dynamic";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -11,6 +11,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/api/", "/library", "/collections", "/credits", "/studio", "/signin", "/register"],
     },
-    sitemap: `${baseUrl()}/sitemap.xml`,
+    sitemap: `${getApplicationConfig().siteUrl}/sitemap.xml`,
   };
 }

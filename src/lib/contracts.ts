@@ -9,7 +9,10 @@ export const DiagramTypeSchema = z.enum([
   "construction",
 ]);
 
-export const ImageModelSchema = z.enum(["gpt-image-2", "mai-image-2.5"]);
+export const ImageModelSchema = z.string().trim().min(1).max(64).regex(
+  /^[a-z0-9][a-z0-9._-]*$/,
+  "Image model IDs may only contain lowercase letters, numbers, dots, underscores, and hyphens",
+);
 export const VisualStyleSchema = z.enum(["isometric", "realistic", "blueprint"]);
 
 export const PartSpecSchema = z.object({
@@ -153,11 +156,16 @@ export interface DiagramResult {
 export interface AzureStatus {
   configured: boolean;
   visionConfigured: boolean;
-  imageModels: Record<ImageModel, boolean>;
+  imageModels: {
+    id: ImageModel;
+    label: string;
+    api: "openai" | "mai";
+    deployment: string;
+    configured: boolean;
+  }[];
+  defaultImageModel: ImageModel;
   deployments: {
     vision: string;
-    gptImage: string;
-    maiImage: string;
   };
 }
 

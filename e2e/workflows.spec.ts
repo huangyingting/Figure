@@ -172,10 +172,13 @@ test("studio, annotation editing, collection creation and quiz controls work tog
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/studio");
   await expect(page.getByRole("combobox", { name: "Visual style", exact: true })).toContainText("Isometric");
+  const imageModel = page.getByRole("combobox", { name: "Image model", exact: true });
+  await expect(imageModel).toContainText("Fast image");
+  await imageModel.click();
+  await expect(page.getByRole("option")).toHaveCount(3);
+  await page.getByRole("option", { name: test.info().project.name === "mobile" ? /MAI/ : /Detailed image/ }).click();
   const visualStyle = test.info().project.name === "mobile" ? "blueprint" : "isometric";
   if (test.info().project.name === "mobile") {
-    await page.getByRole("combobox", { name: "Image model", exact: true }).click();
-    await page.getByRole("option", { name: /MAI/ }).click();
     await page.getByRole("combobox", { name: "Visual style", exact: true }).click();
     await page.getByRole("option", { name: "Blueprint", exact: true }).click();
   }
@@ -194,6 +197,7 @@ test("studio, annotation editing, collection creation and quiz controls work tog
   const exported = JSON.parse(await readFile(jsonPath, "utf8"));
   expect(exported.annotation.parts).toHaveLength(7);
   expect(exported.provenance.visualStyle).toBe(visualStyle);
+  expect(exported.provenance.imageModel).toBe(test.info().project.name === "mobile" ? "fixture-mai" : "fixture-image");
   const imageDownloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: /^Image/ }).click();
   const imageDownload = await imageDownloadPromise;

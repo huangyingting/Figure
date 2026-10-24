@@ -18,6 +18,7 @@ All menu-style selects use the shared accessible custom listbox component; the a
 
 ```bash
 npm install
+cp .env.example .env
 npm run setup:local
 npm run db:generate
 npm run db:deploy
@@ -26,13 +27,15 @@ npm run dev
 ```
 
 The seed adds a public centrifugal-pump lesson and the local development account `demo@figure.local` / `figure-demo`. Seed credentials are for local development only.
-`setup:local` adds only missing database/authentication settings, generates a random local auth secret, and preserves existing provider credentials. Configure Azure using `.env.example` as a reference; never replace an existing environment file wholesale. Prisma commands and the seed load the same environment files as Next.js.
+Copy `.env.example` only when `.env` does not already exist; never replace an existing configuration file wholesale. `setup:local` writes only missing database/authentication settings to `.env`, generates a random local auth secret, and preserves existing provider credentials. Replace the template `AUTH_SECRET` with a random secret before starting. Next.js, Prisma commands, the seed and provider scripts all use the same `.env` loader.
 
-Run the full verification gate with:
+The Prisma CLI and client are pinned to the same version. The full verification gate regenerates the client before testing and typechecking, so schema changes cannot silently leave stale types:
 
 ```bash
 npm run check
 ```
+
+The Prisma 6 configuration dependency uses a scoped `deepmerge-ts` override for its patched release; do not remove it without checking the dependency audit.
 
 Browser verification runs against a production build with a disposable, migrated SQLite database and isolated image storage under `.e2e/`:
 
@@ -103,11 +106,43 @@ Stored images are served through an authorization-aware application route. Priva
 
 ## Azure AI configuration
 
-The server supports `gpt-image-2` and `MAI-Image-2.5` image deployments plus a vision-capable deployment for planning and spatial grounding. Browser clients never receive provider credentials.
+All Azure AI settings are resolved and validated in `src/lib/azure-config.ts`. Set `AZURE_VISION_DEPLOYMENT` for planning and spatial grounding, and define image deployments in `AZURE_IMAGE_MODELS`. These are your actual Azure deployment names; there are no hardcoded deployment fallbacks. Missing or invalid image definitions are explicit configuration errors. Saved figures and exported provenance record the configured deployment names. Browser clients never receive provider credentials.
+
+Define `AZURE_IMAGE_MODELS` as a nonempty JSON array in `.env`, even for a single image model. Each entry has an arbitrary stable `id`, a display `label`, an `api` protocol (`openai` or `mai`), its own `endpoint`, an Azure `deployment` name, and an `apiKeyEnv` reference to a separate credential variable:
+
+```dotenv
+AZURE_IMAGE_MODELS='[
+  {"id":"fast","label":"Fast image","api":"openai","endpoint":"https://IMAGE-A.openai.azure.com","deployment":"YOUR_FAST_DEPLOYMENT","apiKeyEnv":"AZURE_IMAGE_FAST_KEY","authMode":"api-key"},
+  {"id":"detail","label":"Detailed image","api":"openai","endpoint":"https://IMAGE-B.openai.azure.com","deployment":"YOUR_DETAIL_DEPLOYMENT","apiKeyEnv":"AZURE_IMAGE_DETAIL_KEY","quality":"high"},
+  {"id":"editorial","label":"MAI editorial","api":"mai","endpoint":"https://IMAGE-C.services.ai.azure.com","deployment":"YOUR_MAI_DEPLOYMENT","apiKeyEnv":"AZURE_IMAGE_MAI_KEY"}
+]'
+AZURE_IMAGE_FAST_KEY=YOUR_IMAGE_A_KEY
+AZURE_IMAGE_DETAIL_KEY=YOUR_IMAGE_B_KEY
+AZURE_IMAGE_MAI_KEY=YOUR_IMAGE_C_KEY
+AZURE_IMAGE_MODEL=fast
+```
+
+The studio builds its choices from these entries and uses `AZURE_IMAGE_MODEL` as the default ID. Without a default, the first configured model is selected. IDs must be unique, lowercase, and contain only letters, numbers, dots, underscores, or hyphens (starting with a letter or number, up to 64 characters). Generation requests submit the ID, not an endpoint or secret; unknown IDs are rejected before charging credits. Saved figures retain the actual deployment name.
+
+Each entry may override `authMode` (`auto`, `api-key`, `entra`), `size`, `quality`, and `timeoutMs`; otherwise the shared tuning defaults apply. `quality` applies to OpenAI Images only. MAI defaults to square images, OpenAI Images to landscape. A keyless entry can use `"authMode":"entra"` without `apiKeyEnv`. Registry entries never fall back to shared endpoints or API keys, preventing accidental credential mixing across resources. Inline API keys, duplicate IDs, invalid settings, and unknown default IDs are configuration errors. Entra entries use the server's Azure identity; the registry does not select separate identities or tenants.
+
+The registry is the only image configuration path; the former `AZURE_GPT_IMAGE_*` and `AZURE_MAI_IMAGE_*` settings are no longer read. To migrate an older configuration, put each endpoint, deployment, credential reference, and tuning option into a registry entry, and set `AZURE_IMAGE_MODEL` to its ID. No database migration is needed, and existing saved figures are unaffected. Vision remains independently configured with `AZURE_VISION_*`; set `AZURE_VISION_AUTH_MODE` to override the shared auth mode for that resource.
 
 See `.env.example` for the complete set of Azure OpenAI, Microsoft Foundry, timeout, image-quality, authentication, database, and object-storage variables.
 
+**`.env` is the single authoritative source for application settings**, including image models, Azure identity, database, authentication, storage and site URL. `.env.local`, mode-specific env files and inherited application environment variables do not override it. Image deployment names and model choices are read from this file, not hardcoded. Registry credential references must also be defined in `.env`. Missing `.env` is an explicit error; values are parsed literally, without shell-variable interpolation. Next.js and external SDKs receive the file settings through one compatibility loader; application code reads the consolidated configuration directly. Runtime controls such as `NODE_ENV` and `PATH` remain process settings. Restart the server after changing configuration.
+
+Test actual planning, image generation, and spatial grounding with:
+
+```bash
+npm run azure:check
+```
+
+These live checks use synthetic prompts, generate one image per configured registry entry, and may incur Azure charges. They do not save figures or modify the database. Output omits credentials and provider response bodies. Unsupported image sizes, quality, authentication/API modes, and timeouts fail explicitly rather than silently selecting different settings.
+
 `AZURE_AUTH_MODE=auto` is the default: keys are used first, with Microsoft Entra ID fallback only when the resource explicitly disables key authentication. Use `AZURE_AUTH_MODE=entra` for keyless deployments or `api-key` to disable fallback. Entra authentication uses `DefaultAzureCredential`; assign the deployed identity the required model-access role in the resource's tenant. For local development, `az login` and `AZURE_TOKEN_CREDENTIALS=AzureCliCredential` can select the CLI identity explicitly. A token from another tenant will not work, even when an endpoint and deployment are configured. Configuration status does not assert live provider connectivity.
+
+Azure Identity is pinned to the stable line that avoids the MSAL authorization-code advisory, with a scoped UUID security override for MSAL. Update these dependencies together and run the audit and credential-compatibility tests; do not force an unsupported MSAL major version into Azure Identity.
 
 The generated image is intentionally label-free. The vision pass returns normalized anchors and boxes independently, keeping visual pixels, annotation copy, review status, and quiz content editable and auditable.
 
@@ -124,6 +159,8 @@ Set a random `AUTH_SECRET`, the public HTTPS `AUTH_URL`, `DATABASE_URL`, and pro
 SQLite and local storage require persistent volumes and a single application instance. The in-memory rate limiter is also per-process; multi-instance deployments need a shared limiter and a database/storage deployment designed for that topology. Back up the database and image storage together. Databases previously created with `db:push` need an operator-reviewed migration baseline before `db:deploy`; do not reset an existing production database.
 
 The automated gate does not certify external credentials, OAuth callback registration, cloud permissions, backups, or deployment capacity. Verify live planning, rendering, and spatial grounding against the intended Azure resource, plus each configured social provider, before release. Generation errors include a request ID; `CREDIT_REFUND_FAILED` means an administrator must reconcile that charge after restoring database access.
+
+Provide the production `.env` as a private file on the server or container, not as committed source or inherited application variables. Browser tests use their own isolated `.e2e/.env`, database and storage; they never replace the real application configuration.
 
 ### Interrupted generation recovery
 

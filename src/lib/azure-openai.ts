@@ -1,13 +1,13 @@
 import OpenAI from "openai";
 import { AggregateAuthenticationError, DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
 
+import { loadApplicationEnv } from "../../scripts/application-env.mjs";
 import {
   type AzureStatus,
   type DiagramPlan,
   DiagramPlanSchema,
   type DiagramImage,
   type GenerateDiagramRequest,
-  type ImageModel,
   type PlanDiagramRequest,
   type VisionModelPayload,
   VisionModelPayloadSchema,
@@ -22,32 +22,19 @@ import {
   buildVisionUserPrompt,
 } from "@/lib/prompts";
 import { makeBackgroundTransparent } from "@/lib/image-transparency";
+import {
+  AzureConfigurationError,
+  getAzureConfig,
+  getAzureImageConfig,
+  isAzureResourceConfigured,
+  requireAzureResource,
+  type AzureResourceConfig,
+} from "@/lib/azure-config";
 
-type VisionApi = "responses" | "chat-completions";
-
-interface AzureResourceConfig {
-  apiKey: string;
-  endpoint: string;
-  deployment: string;
-}
+export { AzureConfigurationError } from "@/lib/azure-config";
 
 interface GeneratedImage extends DiagramImage {
   prompt: string;
-}
-
-export class AzureConfigurationError extends Error {
-  constructor(message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = "AzureConfigurationError";
-  }
-}
-
-function firstEnvironmentValue(...keys: string[]): string {
-  for (const key of keys) {
-    const value = process.env[key]?.trim();
-    if (value) return value;
-  }
-  return "";
 }
 
 export function normalizeAzureBaseURL(endpoint: string): string {
@@ -58,64 +45,6 @@ export function normalizeAzureBaseURL(endpoint: string): string {
   return `${trimmed}/openai/v1/`;
 }
 
-function visionConfig(): AzureResourceConfig {
-  return {
-    endpoint: firstEnvironmentValue(
-      "AZURE_VISION_ENDPOINT",
-      "AZURE_OPENAI_ENDPOINT",
-    ),
-    apiKey: firstEnvironmentValue(
-      "AZURE_VISION_API_KEY",
-      "AZURE_OPENAI_API_KEY",
-    ),
-    deployment:
-      firstEnvironmentValue("AZURE_VISION_DEPLOYMENT") || "gpt-5.6-terra",
-  };
-}
-
-function imageConfig(model: ImageModel): AzureResourceConfig {
-  const isMai = model === "mai-image-2.5";
-  const prefix = isMai ? "AZURE_MAI_IMAGE" : "AZURE_GPT_IMAGE";
-  const dedicatedEndpoint = firstEnvironmentValue(`${prefix}_ENDPOINT`);
-  const sharedEndpoint = firstEnvironmentValue("AZURE_OPENAI_ENDPOINT");
-  const endpoint =
-    dedicatedEndpoint ||
-    (!isMai || /\.services\.ai\.azure\.com(?:\/|$)/i.test(sharedEndpoint)
-      ? sharedEndpoint
-      : "");
-  return {
-    endpoint,
-    apiKey: firstEnvironmentValue(
-      `${prefix}_API_KEY`,
-      "AZURE_OPENAI_API_KEY",
-    ),
-    deployment:
-      firstEnvironmentValue(`${prefix}_DEPLOYMENT`) ||
-      (isMai ? "MAI-Image-2.5" : "gpt-image-2"),
-  };
-}
-
-function isConfigured(config: AzureResourceConfig): boolean {
-  return Boolean(config.endpoint && config.deployment && (config.apiKey || process.env.AZURE_AUTH_MODE === "entra"));
-}
-
-function requireConfig(
-  config: AzureResourceConfig,
-  label: string,
-): AzureResourceConfig {
-  if (!config.endpoint) {
-    throw new AzureConfigurationError(
-      `${label} is missing an Azure endpoint. Set a dedicated endpoint or AZURE_OPENAI_ENDPOINT.`,
-    );
-  }
-  if (!config.apiKey && process.env.AZURE_AUTH_MODE !== "entra") {
-    throw new AzureConfigurationError(
-      `${label} is missing an API key. Set a dedicated key or AZURE_OPENAI_API_KEY.`,
-    );
-  }
-  return config;
-}
-
 let tokenProvider: (() => Promise<string>) | undefined;
 const entraEndpoints = new Set<string>();
 
@@ -123,13 +52,11 @@ async function azureRequest<T>(
   config: AzureResourceConfig,
   execute: (token: string, bearer: boolean) => Promise<T>,
 ): Promise<T> {
-  const mode = process.env.AZURE_AUTH_MODE || "auto";
-  if (!["auto", "api-key", "entra"].includes(mode)) {
-    throw new AzureConfigurationError("AZURE_AUTH_MODE must be auto, api-key, or entra.");
-  }
+  const mode = config.authMode;
   const useEntra = mode === "entra" || (mode === "auto" && entraEndpoints.has(config.endpoint));
   const withEntra = async () => {
     try {
+      loadApplicationEnv();
       tokenProvider ??= getBearerTokenProvider(new DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default");
       return await execute(await tokenProvider(), true);
     } catch (error) {
@@ -155,44 +82,43 @@ async function azureRequest<T>(
 }
 
 export function getAzureStatus(): AzureStatus {
-  const vision = visionConfig();
-  const gptImage = imageConfig("gpt-image-2");
-  const maiImage = imageConfig("mai-image-2.5");
-  const visionConfigured = isConfigured(vision);
-  const imageModels = {
-    "gpt-image-2": isConfigured(gptImage),
-    "mai-image-2.5": isConfigured(maiImage),
-  };
+  const { vision, images, defaultImageModel } = getAzureConfig();
+  const visionConfigured = isAzureResourceConfigured(vision);
+  const imageModels = Object.values(images).map((model) => ({
+    id: model.id,
+    label: model.label,
+    api: model.api,
+    deployment: model.deployment,
+    configured: isAzureResourceConfigured(model),
+  }));
 
   return {
     configured:
       visionConfigured &&
-      (imageModels["gpt-image-2"] || imageModels["mai-image-2.5"]),
+      imageModels.some((model) => model.configured),
     visionConfigured,
     imageModels,
+    defaultImageModel,
     deployments: {
       vision: vision.deployment,
-      gptImage: gptImage.deployment,
-      maiImage: maiImage.deployment,
     },
   };
-}
-
-function requestTimeout(): number {
-  const configured = Number(process.env.AZURE_REQUEST_TIMEOUT_MS);
-  if (!Number.isFinite(configured)) return 180_000;
-  return Math.min(300_000, Math.max(10_000, configured));
 }
 
 function client(
   config: AzureResourceConfig,
   defaultQuery?: Record<string, string>,
 ): OpenAI {
+  // The SDK reads OPENAI_* settings directly, including custom request headers.
+  loadApplicationEnv();
   return new OpenAI({
     apiKey: config.apiKey,
+    adminAPIKey: null,
+    organization: null,
+    project: null,
     baseURL: normalizeAzureBaseURL(config.endpoint),
     defaultQuery,
-    timeout: requestTimeout(),
+    timeout: config.timeoutMs,
     maxRetries: 1,
   });
 }
@@ -207,36 +133,20 @@ export function normalizeMaiImageURL(endpoint: string): string {
   return `${resourceRoot}/mai/v1/images/generations`;
 }
 
-function configuredImageSize(model: ImageModel): {
-  size: "1024x1024" | "1536x1024" | "1024x1536";
-  width: number;
-  height: number;
-} {
-  const key =
-    model === "mai-image-2.5"
-      ? "AZURE_MAI_IMAGE_SIZE"
-      : "AZURE_GPT_IMAGE_SIZE";
-  const fallback = model === "mai-image-2.5" ? "1024x1024" : "1536x1024";
-  const size = firstEnvironmentValue(key) || fallback;
-  if (size === "1024x1536") return { size, width: 1024, height: 1536 };
-  if (size === "1536x1024") return { size, width: 1536, height: 1024 };
-  return { size: "1024x1024", width: 1024, height: 1024 };
-}
-
 function mimeTypeFor(format: string | undefined): string {
   if (format === "jpeg" || format === "jpg") return "image/jpeg";
   if (format === "webp") return "image/webp";
   return "image/png";
 }
 
-async function remoteImageToDataURL(url: string, mimeType: string): Promise<string> {
+async function remoteImageToDataURL(url: string, mimeType: string, timeoutMs: number): Promise<string> {
   const parsed = new URL(url);
   if (parsed.protocol !== "https:") {
     throw new Error("The image service returned a non-HTTPS URL, so the download was blocked.");
   }
 
   const response = await fetch(parsed, {
-    signal: AbortSignal.timeout(requestTimeout()),
+    signal: AbortSignal.timeout(timeoutMs),
     redirect: "follow",
   });
   if (!response.ok) {
@@ -263,6 +173,7 @@ interface ImageResponseItem {
 function imageFromResponseItem(
   item: ImageResponseItem,
   mimeType: string,
+  timeoutMs: number,
 ): Promise<{ src: string; revisedPrompt: string | null }> {
   if (item.b64_json) {
     return Promise.resolve({
@@ -271,7 +182,7 @@ function imageFromResponseItem(
     });
   }
   if (item.url) {
-    return remoteImageToDataURL(item.url, mimeType).then((src) => ({
+    return remoteImageToDataURL(item.url, mimeType, timeoutMs).then((src) => ({
       src,
       revisedPrompt: item.revised_prompt ?? null,
     }));
@@ -318,7 +229,7 @@ async function generateMaiImage(
         width: dimensions.width,
         height: dimensions.height,
       }),
-      signal: AbortSignal.timeout(requestTimeout()),
+      signal: AbortSignal.timeout(config.timeoutMs),
     });
     if (response.status === 403) {
       const text = await response.clone().text();
@@ -331,28 +242,25 @@ async function generateMaiImage(
     return response;
   });
   if (!response.ok) {
-    throw new Error(`MAI image generation failed (HTTP ${response.status}).`);
+    throw Object.assign(new Error(`MAI image generation failed (HTTP ${response.status}).`), { status: response.status });
   }
   const payload = (await response.json()) as { data?: ImageResponseItem[] };
   const item = payload.data?.[0];
   if (!item) throw new Error("The MAI image model returned no image.");
-  const result = await imageFromResponseItem(item, "image/png");
+  const result = await imageFromResponseItem(item, "image/png", config.timeoutMs);
   return { src: result.src, revisedPrompt: null };
 }
 
 export async function generateAzureImage(
   input: GenerateDiagramRequest,
 ): Promise<GeneratedImage> {
-  const imageLabel =
-    input.imageModel === "mai-image-2.5"
-      ? "MAI image model (AZURE_MAI_IMAGE_ENDPOINT must point to a .services.ai.azure.com resource)"
-      : "GPT image model";
-  const config = requireConfig(imageConfig(input.imageModel), imageLabel);
+  const azure = getAzureConfig();
+  const model = getAzureImageConfig(input.imageModel, azure);
+  const config = requireAzureResource(model, `Image model "${model.id}"`);
   const prompt = buildImagePrompt(input);
-  const dimensions = configuredImageSize(input.imageModel);
-  const quality = firstEnvironmentValue("AZURE_IMAGE_QUALITY") || "medium";
+  const dimensions = model;
 
-  if (input.imageModel === "mai-image-2.5") {
+  if (model.api === "mai") {
     const image = await generateMaiImage(config, prompt, dimensions);
     const transparentImage = await imageWithTransparentBackground(image.src);
     return {
@@ -367,7 +275,7 @@ export async function generateAzureImage(
     prompt,
     n: 1,
     size: dimensions.size,
-    quality: quality as "low" | "medium" | "high" | "auto",
+    quality: model.quality,
   }));
 
   const item = response.data?.[0];
@@ -375,7 +283,7 @@ export async function generateAzureImage(
   const outputFormat =
     "output_format" in item ? String(item.output_format) : "png";
   const mimeType = mimeTypeFor(outputFormat);
-  const image = await imageFromResponseItem(item, mimeType);
+  const image = await imageFromResponseItem(item, mimeType, config.timeoutMs);
   const transparentImage = await imageWithTransparentBackground(image.src);
 
   return {
@@ -409,18 +317,13 @@ function parsePlanText(text: string): DiagramPlan {
   return result.data;
 }
 
-function selectedVisionApi(): VisionApi {
-  return process.env.AZURE_VISION_API === "chat-completions"
-    ? "chat-completions"
-    : "responses";
-}
-
 export async function planDiagramParts(
   input: PlanDiagramRequest,
 ): Promise<DiagramPlan> {
-  const config = requireConfig(visionConfig(), "Planning model");
+  const azure = getAzureConfig();
+  const config = requireAzureResource(azure.vision, "AZURE_VISION");
 
-  if (selectedVisionApi() === "chat-completions") {
+  if (azure.visionApi === "chat-completions") {
     const response = await azureRequest(config, (token) => client({ ...config, apiKey: token }).chat.completions.create({
       model: config.deployment,
       messages: [
@@ -551,8 +454,9 @@ export async function locateDiagramParts(
   input: GenerateDiagramRequest,
   imageDataURL: string,
 ): Promise<VisionModelPayload> {
-  const config = requireConfig(visionConfig(), "Vision model");
-  return selectedVisionApi() === "chat-completions"
+  const azure = getAzureConfig();
+  const config = requireAzureResource(azure.vision, "AZURE_VISION");
+  return azure.visionApi === "chat-completions"
     ? locateWithChatCompletions(config, input, imageDataURL)
     : locateWithResponses(config, input, imageDataURL);
 }

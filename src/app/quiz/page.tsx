@@ -12,8 +12,8 @@ import { prisma } from "@/lib/prisma";
 import {
   browseQuizFigures,
   getQuizFigure,
-  quizFigureHref,
 } from "@/lib/quiz-figure-browser";
+import { quizFigureHref } from "@/lib/quiz-figure-links";
 import { computePartAccuracy, weakestParts } from "@/lib/quiz-insights";
 import { getLocale, getTranslator } from "@/lib/i18n";
 

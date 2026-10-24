@@ -3,15 +3,15 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { PrismaClient } from "@prisma/client";
-import nextEnv from "@next/env";
+import { loadApplicationEnv } from "../scripts/application-env.mjs";
 import { demoResult } from "../src/lib/demo-data";
 import { FilesystemFigureStorage } from "../src/lib/storage/filesystem";
 
-nextEnv.loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production");
+const settings = loadApplicationEnv();
 if (process.env.NODE_ENV === "production") {
   throw new Error("The demo seed must not run in production.");
 }
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: settings.DATABASE_URL });
 
 async function main() {
   const email = "demo@figure.local";
@@ -35,7 +35,7 @@ async function main() {
   }
 
   const bytes = await readFile(path.resolve("public/demo-pump.png"));
-  const storage = new FilesystemFigureStorage(path.resolve(process.env.FIGURE_STORAGE_DIR || ".media"));
+  const storage = new FilesystemFigureStorage(path.resolve(settings.FIGURE_STORAGE_DIR || ".media"));
   const stored = await storage.put(bytes, demoResult.image.mimeType, user.id);
   await prisma.figure.upsert({
     where: { id: demoResult.id },

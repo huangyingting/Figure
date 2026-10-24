@@ -1,13 +1,12 @@
 import type { MetadataRoute } from "next";
 
+import { getApplicationConfig } from "@/lib/config";
 import { prisma } from "@/lib/prisma";
 
-function baseUrl(): string {
-  return (process.env.AUTH_URL || "http://localhost:3000").replace(/\/+$/, "");
-}
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = baseUrl();
+  const base = getApplicationConfig().siteUrl;
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${base}/`, changeFrequency: "weekly", priority: 1 },
     { url: `${base}/discover`, changeFrequency: "daily", priority: 0.9 },

@@ -2,10 +2,11 @@ import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 
 import { authConfig, guestOnlyRoutes, isMatch, protectedRoutes, safeCallbackUrl } from "@/auth.config";
+import { getApplicationConfig } from "@/lib/config";
 
 // Gating here keeps redirect() out of the server components, so a signed-out
 // navigation never renders (and never aborts) the page it is not allowed to see.
-const { auth } = NextAuth(authConfig);
+const { auth } = NextAuth({ ...authConfig, secret: getApplicationConfig().auth.secret });
 
 export const proxy = auth((request) => {
   const { pathname, search } = request.nextUrl;

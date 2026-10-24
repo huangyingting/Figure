@@ -5,10 +5,8 @@ import Link from "next/link";
 
 import { Button, EmptyState } from "@/components/ui";
 import { formatGeneratedDate } from "@/lib/dates";
-import {
-  quizFigureHref,
-  type QuizFigureBrowserResult,
-} from "@/lib/quiz-figure-browser";
+import type { QuizFigureBrowserResult } from "@/lib/quiz-figure-browser";
+import { quizFigureHref } from "@/lib/quiz-figure-links";
 import { useI18n } from "@/components/i18n-provider";
 import { localizeDemoFigure } from "@/lib/demo-data";
 

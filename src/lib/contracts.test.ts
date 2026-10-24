@@ -35,6 +35,15 @@ describe("diagram planning contracts", () => {
     expect(GenerateDiagramRequestSchema.safeParse({ ...input, diagramType: "isometric" }).success).toBe(false);
   });
 
+  it("accepts configured model IDs without tying requests to provider model names", () => {
+    const input = { subject: "A turbine", diagramType: "cutaway", audience: "learners", parts };
+    expect(GenerateDiagramRequestSchema.parse({ ...input, imageModel: "studio-image-fast" }).imageModel)
+      .toBe("studio-image-fast");
+    for (const imageModel of ["", "Bad ID", "../model", "a".repeat(65)]) {
+      expect(GenerateDiagramRequestSchema.safeParse({ ...input, imageModel }).success).toBe(false);
+    }
+  });
+
   it("requires a useful component inventory and rejects duplicate IDs", () => {
     expect(
       DiagramPlanSchema.parse({

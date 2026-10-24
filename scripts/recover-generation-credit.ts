@@ -1,8 +1,8 @@
 import process from "node:process";
 
-import nextEnv from "@next/env";
+import { loadApplicationEnv } from "./application-env.mjs";
 
-nextEnv.loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production");
+loadApplicationEnv();
 
 const args = process.argv.slice(2);
 const apply = args.includes("--apply");
