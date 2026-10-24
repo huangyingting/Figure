@@ -16,6 +16,7 @@ export interface HeaderUser {
   name?: string | null;
   email?: string | null;
   credits: number;
+  role?: string;
 }
 
 function isActive(pathname: string, href: string) {
@@ -75,6 +76,9 @@ function AccountMenu({ user }: { user: HeaderUser }) {
             <Link role="menuitem" className={itemClass} href="/account" onClick={() => setOpen(false)}>
               <UserCog size={15} />{t("Account settings")}
             </Link>
+            {user.role === "admin" && <Link role="menuitem" className={itemClass} href="/admin/invitations" onClick={() => setOpen(false)}>
+              <UserCog size={15} />{t("Account invitations")}
+            </Link>}
             <Link role="menuitem" className={itemClass} href="/credits" onClick={() => setOpen(false)}>
               <Coins size={15} /><span className="mr-auto">{t("Credits")}</span>
               <strong className="font-display text-[15px] text-pine-dark">{user.credits}</strong>
@@ -139,7 +143,7 @@ export function AppHeader({ user = null, extra }: { user?: HeaderUser | null; ex
 
         <div className="ml-auto flex items-center gap-[10px] md:hidden">
           <MobileMenu
-            account={user ? { name: user.name ?? null, email: user.email ?? null, credits: user.credits } : null}
+            account={user ? { name: user.name ?? null, email: user.email ?? null, credits: user.credits, role: user.role } : null}
           />
         </div>
       </div>

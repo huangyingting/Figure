@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { PrismaClient } from "@prisma/client";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { createHash, randomBytes } from "node:crypto";
 
 import demo from "../src/lib/demo-pump.generated.json" with { type: "json" };
 
@@ -18,6 +19,9 @@ async function signIn(page: Page) {
 }
 
 test.afterAll(async () => { await prisma.$disconnect(); });
+test.beforeEach(async ({ context }, info) => {
+  await context.setExtraHTTPHeaders({ "X-Forwarded-For": `192.0.2.${info.line % 100 + (info.project.name === "mobile" ? 100 : 0)}` });
+});
 
 test("public browsing, private route gating, and responsive navigation", async ({ page }) => {
   const errors: string[] = [];
@@ -302,21 +306,28 @@ test("studio, annotation editing, collection creation and quiz controls work tog
 test("registration, profile and password forms persist changes", async ({ page }) => {
   const email = `browser-${test.info().project.name}@figure.test`;
   const password = "browser-initial-password";
-  await page.goto("/register?callbackUrl=/account");
-  await page.getByLabel("Name", { exact: true }).fill("Browser learner");
-  await page.getByLabel("Email", { exact: true }).fill(email);
-  await page.getByLabel("Password", { exact: true }).fill(password);
+  const inviter = await prisma.user.findUniqueOrThrow({ where: { email: "demo@figure.local" } });
+  const token = randomBytes(32).toString("hex");
+  await prisma.accountInvitation.create({ data: {
+    email, tokenHash: createHash("sha256").update(token).digest("hex"), invitedById: inviter.id,
+    expiresAt: new Date(Date.now() + 86400000),
+  } });
+  await page.goto(`/invite/${token}`);
+  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Browser learner");
+  await expect(page.getByRole("textbox", { name: "Email", exact: true })).toHaveValue(email);
+  await page.locator('input[name="password"]:visible').fill(password);
   await page.getByRole("button", { name: "Create free account", exact: true }).click();
-  await expect(page).toHaveURL((url) => url.pathname === "/account");
+  await expect(page).toHaveURL((url) => url.pathname === "/library");
+  await page.goto("/account");
   const user = await prisma.user.findUniqueOrThrow({ where: { email } });
   expect(user.credits).toBe(12);
   expect(await prisma.creditLedger.count({ where: { userId: user.id, reason: "signup_bonus" } })).toBe(1);
-  await page.getByLabel("Name", { exact: true }).fill("Updated learner");
+  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Updated learner");
   await page.getByRole("button", { name: "Save profile", exact: true }).click();
   await expect(page.getByText("Profile updated.", { exact: true })).toBeVisible();
   expect((await prisma.user.findUniqueOrThrow({ where: { email } })).name).toBe("Updated learner");
-  await page.getByLabel("Current password", { exact: true }).fill(password);
-  await page.getByLabel("New password", { exact: true }).fill("browser-updated-password");
+  await page.getByLabel("Current password", { exact: true }).filter({ visible: true }).fill(password);
+  await page.getByLabel("New password", { exact: true }).filter({ visible: true }).fill("browser-updated-password");
   await page.getByRole("button", { name: "Update password", exact: true }).click();
   await expect(page.getByText("Password updated.", { exact: true })).toBeVisible();
   if (test.info().project.name === "mobile") {
@@ -328,9 +339,76 @@ test("registration, profile and password forms persist changes", async ({ page }
   }
   await expect(page).toHaveURL((url) => url.pathname === "/");
   await page.goto("/signin");
-  await page.getByLabel("Email", { exact: true }).fill(email);
-  await page.getByLabel("Password", { exact: true }).fill("browser-updated-password");
+  await page.getByRole("textbox", { name: "Email", exact: true }).fill(email);
+  await page.locator('input[name="password"]:visible').fill("browser-updated-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/library$/);
   await prisma.user.delete({ where: { id: user.id } });
+});
+
+test("invite-only admission, admin link lifecycle, and non-admin denial", async ({ page, browser }) => {
+  const email = `invited-${test.info().project.name}@figure.test`;
+  const password = "invited-test-password";
+  const blocked = await page.request.post("/api/auth/register", { data: { name: "Uninvited", email, password } });
+  expect(blocked.status()).toBe(403);
+  expect(await prisma.user.count({ where: { email } })).toBe(0);
+  expect((await page.request.get("/api/admin/invitations")).status()).toBe(401);
+  await page.goto("/register");
+  await expect(page.getByText("Figure is invite-only. Ask an administrator for an invitation.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create free account" })).toHaveCount(0);
+  await signIn(page);
+  await page.goto("/admin/invitations");
+  await page.getByRole("textbox", { name: "Recipient email", exact: true }).fill(email);
+  await page.getByRole("button", { name: "Create invitation", exact: true }).click();
+  const linkField = page.getByRole("textbox", { name: "One-time invitation link", exact: true });
+  await expect(linkField).toBeVisible();
+  const originalLink = await linkField.inputValue();
+  const row = page.getByRole("listitem").filter({ hasText: email });
+  await row.getByRole("button", { name: "Replace link" }).click();
+  await expect(linkField).not.toHaveValue(originalLink);
+  const replacedLink = await linkField.inputValue();
+  const guest = await browser.newContext({
+    baseURL: new URL(page.url()).origin,
+    extraHTTPHeaders: { "X-Forwarded-For": `198.51.100.${test.info().project.name === "mobile" ? 2 : 1}` },
+  });
+  const invitePage = await guest.newPage();
+  await invitePage.goto(originalLink);
+  await expect(invitePage.getByRole("heading", { name: "Invitation unavailable" })).toBeVisible();
+  await row.getByRole("button", { name: "Revoke", exact: true }).click();
+  await expect(row.getByText("revoked", { exact: false })).toBeVisible();
+  await invitePage.goto(replacedLink);
+  await expect(invitePage.getByRole("heading", { name: "Invitation unavailable" })).toBeVisible();
+  await row.getByRole("button", { name: "Replace link" }).click();
+  await expect(linkField).not.toHaveValue(replacedLink);
+  const validLink = await linkField.inputValue();
+  const token = validLink.split("/").at(-1)!;
+  await prisma.accountInvitation.update({ where: { email }, data: { expiresAt: new Date(0) } });
+  const expired = await guest.request.post("/api/auth/register", {
+    data: { name: "Expired grant", email, password, token },
+  });
+  expect(expired.status()).toBe(403);
+  expect(await prisma.user.count({ where: { email } })).toBe(0);
+  await prisma.accountInvitation.update({ where: { email }, data: { expiresAt: new Date(Date.now() + 86400000) } });
+  const mismatch = await guest.request.post("/api/auth/register", {
+    data: { name: "Wrong email", email: "different@figure.test", password, token },
+  });
+  expect(mismatch.status()).toBe(403);
+  await invitePage.goto(validLink);
+  await expect(invitePage.getByRole("textbox", { name: "Email", exact: true })).toHaveValue(email);
+  await invitePage.getByRole("textbox", { name: "Name", exact: true }).fill("Invited learner");
+  await invitePage.locator('input[name="password"]:visible').fill(password);
+  await invitePage.getByRole("button", { name: "Create free account" }).click();
+  await expect(invitePage).toHaveURL((url) => url.pathname === "/library");
+  const member = await prisma.user.findUniqueOrThrow({ where: { email } });
+  expect(member.role).toBe("member");
+  expect(member.credits).toBe(12);
+  expect(await prisma.creditLedger.count({ where: { userId: member.id, reason: "signup_bonus" } })).toBe(1);
+  expect((await guest.request.get("/api/admin/invitations")).status()).toBe(403);
+  expect((await guest.request.post("/api/admin/invitations", { data: { email: "escalated@figure.test" } })).status()).toBe(403);
+  const replay = await guest.request.post("/api/auth/register", { data: { name: "Replay", email, password, token } });
+  expect(replay.status()).toBe(403);
+  await page.reload();
+  await expect(page.getByRole("listitem").filter({ hasText: email }).getByText("accepted", { exact: false })).toBeVisible();
+  await guest.close();
+  await prisma.user.delete({ where: { id: member.id } });
 });

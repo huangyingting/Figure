@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { configuredSocialProviders } from "@/auth";
 import { safeCallbackUrl } from "@/auth.config";
 import { AuthForm } from "@/components/auth-form";
 import { FigureBrand } from "@/components/figure-brand";
 import { getTranslator } from "@/lib/i18n";
+import { getApplicationConfig } from "@/lib/config";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslator())("Create your account") };
@@ -26,7 +28,11 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
             <span className="text-meta font-bold text-muted">{t("free figure credits")}</span>
           </div>
         </div>
-        <AuthForm mode="register" social={configuredSocialProviders()} callbackUrl={callbackUrl} />
+        {getApplicationConfig().inviteOnly ? <section className="rounded-2xl border border-line bg-paper p-8">
+          <h1 className="font-display text-3xl">{t("You are invited")}</h1>
+          <p className="my-5 text-muted">{t("Figure is invite-only. Ask an administrator for an invitation.")}</p>
+          <Link href={`/signin?${new URLSearchParams({ callbackUrl })}`} className="font-bold text-pine-dark">{t("Sign in")}</Link>
+        </section> : <AuthForm mode="register" social={configuredSocialProviders()} callbackUrl={callbackUrl} />}
       </div>
     </main>
   );

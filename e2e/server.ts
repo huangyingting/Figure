@@ -27,6 +27,7 @@ const settings = {
   AUTH_SECRET: "figure-e2e-only-secret-not-for-production-0123456789",
   AUTH_URL: `http://127.0.0.1:${appPort}`,
   AUTH_TRUST_HOST: "true",
+  FIGURE_INVITE_ONLY: "true",
   AUTH_GOOGLE_ID: "",
   AUTH_GOOGLE_SECRET: "",
   AUTH_FACEBOOK_ID: "",
@@ -84,6 +85,10 @@ execFileSync(process.execPath, [path.join(root, "scripts/prisma.mjs"),
 });
 execFileSync(process.execPath, ["--import", "tsx", path.join(root, "prisma/seed.ts")], {
   env: { ...env, NODE_ENV: "test" }, cwd: fixtureDir, stdio: "inherit",
+});
+execFileSync(process.execPath, ["--import", "tsx", path.join(root, "scripts/bootstrap-admin.ts"),
+  "--email", "demo@figure.local", "--name", "Figure demo", "--password-stdin"], {
+  env, cwd: fixtureDir, input: "figure-demo\n", stdio: ["pipe", "inherit", "inherit"],
 });
 
 const image = (await readFile(path.join(root, "public/demo-pump.png"))).toString("base64");

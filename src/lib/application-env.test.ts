@@ -30,6 +30,15 @@ afterEach(() => {
 });
 
 describe("authoritative application configuration", () => {
+  it("defaults to invite-only and accepts only explicit boolean values from .env", () => {
+    const directory = fixture("");
+    vi.spyOn(process, "cwd").mockReturnValue(directory);
+    expect(getApplicationConfig().inviteOnly).toBe(true);
+    writeFileSync(path.join(directory, ".env"), "FIGURE_INVITE_ONLY=false\n");
+    expect(getApplicationConfig().inviteOnly).toBe(false);
+    writeFileSync(path.join(directory, ".env"), "FIGURE_INVITE_ONLY=flase\n");
+    expect(() => getApplicationConfig()).toThrow("true or false");
+  });
   it("reads only .env, ignoring local, mode-specific and inherited application settings", () => {
     const directory = fixture("AZURE_OPENAI_ENDPOINT=https://correct.example.com\nAUTH_SECRET=file-secret\n");
     for (const name of [".env.local", ".env.development", ".env.production", ".env.production.local"]) {

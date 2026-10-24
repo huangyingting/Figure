@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { accountPassword } from "@/lib/account-admission";
 import { requestTranslator } from "@/lib/i18n-shared";
 import { prisma } from "@/lib/prisma";
 
@@ -12,7 +13,7 @@ const profileSchema = z.object({
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1).max(128).optional(),
-  newPassword: z.string().min(8).max(128),
+  newPassword: accountPassword,
 });
 
 export async function PATCH(request: Request) {

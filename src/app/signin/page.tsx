@@ -5,6 +5,7 @@ import { authErrorMessage, safeCallbackUrl } from "@/auth.config";
 import { AuthForm } from "@/components/auth-form";
 import { FigureBrand } from "@/components/figure-brand";
 import { getTranslator } from "@/lib/i18n";
+import { getApplicationConfig } from "@/lib/config";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslator())("Sign in") };
@@ -26,7 +27,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
             <span className="absolute right-5 bottom-5 rounded-md bg-pine px-[9px] py-[7px] text-[11px] font-extrabold text-white">{t("7 components")}</span>
           </div>
         </div>
-        <AuthForm mode="signin" social={configuredSocialProviders()} callbackUrl={callbackUrl} initialError={initialError} />
+        <AuthForm mode="signin" social={configuredSocialProviders()} callbackUrl={callbackUrl} initialError={initialError} inviteOnly={getApplicationConfig().inviteOnly} />
       </div>
     </main>
   );

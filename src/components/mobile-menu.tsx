@@ -17,6 +17,7 @@ interface MobileMenuAccount {
   name: string | null;
   email: string | null;
   credits: number;
+  role?: string;
 }
 
 export function MobileMenu({ account }: { account: MobileMenuAccount | null }) {
@@ -90,6 +91,7 @@ export function MobileMenu({ account }: { account: MobileMenuAccount | null }) {
                     <Coins size={16} /><span><strong>{account.credits}</strong> {t("credits")}</span>
                   </Link>
                   <LanguageSwitcher />
+                  {account.role === "admin" && <Link href="/admin/invitations" onClick={() => setOpen(false)} className="font-bold text-pine-dark">{t("Account invitations")}</Link>}
                   <Link className="flex items-center gap-[11px] text-inherit no-underline" href="/account" onClick={() => setOpen(false)}>
                     <span className="grid h-[38px] w-[38px] place-items-center rounded-full bg-pine font-display text-[16px] font-bold text-white">{account.name?.slice(0, 1).toUpperCase() || account.email?.slice(0, 1).toUpperCase() || "F"}</span>
                     <div><strong className="block text-meta">{account.name || t("Figure learner")}</strong><small className="text-micro text-muted">{account.email}</small></div>

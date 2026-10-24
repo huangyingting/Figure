@@ -1,0 +1,13 @@
+.git
+.env*
+!.env.example
+node_modules
+.next
+.e2e
+.media
+coverage
+playwright-report
+test-results
+prisma/*.db*
+*.tsbuildinfo
+.cred

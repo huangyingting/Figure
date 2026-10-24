@@ -7,7 +7,7 @@ export const authConfig = {
   pages: { signIn: "/signin" },
 } satisfies NextAuthConfig;
 
-export const protectedRoutes = ["/library", "/collections", "/credits", "/account", "/favorites"];
+export const protectedRoutes = ["/library", "/collections", "/credits", "/account", "/favorites", "/admin"];
 export const guestOnlyRoutes = ["/signin", "/register"];
 
 export function isMatch(pathname: string, routes: string[]) {
@@ -26,6 +26,8 @@ export function safeCallbackUrl(value: string | null | undefined, fallback = "/l
 export function authErrorMessage(code: string | null | undefined): string | null {
   if (!code) return null;
   switch (code) {
+    case "InvitationRequired":
+      return "An invitation and a verified Google email are required. Existing members can sign in with their password.";
     case "OAuthAccountNotLinked":
       return "That email is already registered with a password. Sign in with your password to continue.";
     case "OAuthCallbackError":

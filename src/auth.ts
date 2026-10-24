@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { authConfig } from "@/auth.config";
 import { getApplicationConfig } from "@/lib/config";
-import { SIGNUP_CREDIT_ENTRY } from "@/lib/credits";
+import { authorizeSocialAccount, createSocialAccount } from "@/lib/account-admission";
 import { prisma } from "@/lib/prisma";
 import { clientIp, peekRateLimit, rateLimit } from "@/lib/rate-limit";
 
@@ -58,14 +58,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: {
     ...PrismaAdapter(prisma),
     async createUser({ name, email, emailVerified, image }) {
-      const user = await prisma.user.create({
-        data: { name, email, emailVerified, image, creditLedger: { create: SIGNUP_CREDIT_ENTRY } },
-      });
+      const user = await createSocialAccount({ name, email, emailVerified, image });
       return { ...user, email };
     },
   },
   providers,
   callbacks: {
+    async signIn({ account, profile }) {
+      if (!account || account.provider === "credentials") return true;
+      return await authorizeSocialAccount(account.provider, account.providerAccountId, profile)
+        ? true : "/signin?error=InvitationRequired";
+    },
     async jwt({ token, user }) {
       if (user?.id) token.userId = user.id;
       if (!token.userId && token.email) {
@@ -77,11 +80,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user && typeof token.userId === "string") {
         const account = await prisma.user.findUnique({
           where: { id: token.userId },
-          select: { id: true, credits: true },
+          select: { id: true, credits: true, role: true },
         });
         if (account) {
           session.user.id = account.id;
           session.user.credits = account.credits;
+          session.user.role = account.role;
         }
       }
       return session;

@@ -15,6 +15,7 @@ model User {
   image         String?
   passwordHash  String?
   credits       Int            @default(12)
+  role          String         @default("member")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   accounts      Account[]
@@ -23,6 +24,21 @@ model User {
   quizAttempts  QuizAttempt[]
   creditLedger  CreditLedger[]
   favorites     Favorite[]
+  invitations   AccountInvitation[]
+}
+
+model AccountInvitation {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  tokenHash   String?   @unique
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  invitedBy   User      @relation(fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@index([invitedById])
 }
 
 model Account {

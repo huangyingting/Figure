@@ -10,7 +10,8 @@ Figure is a visual learning app that turns a topic into an AI-generated image wi
 - `/collections` — create color-coded collections and save public or owned figures.
 - `/quiz` — take component recall quizzes; attempts and mastery are persisted.
 - `/credits` — inspect the current balance and immutable generation ledger.
-- `/signin` and `/register` — local email/password authentication plus optional Google and Facebook OAuth.
+- `/signin` and `/invite/:token` — local email/password authentication, one-time invitations and optional social sign-in.
+- `/admin/invitations` — administrator-only invitation creation, replacement and revocation.
 
 All menu-style selects use the shared accessible custom listbox component; the application does not render browser-native `<select>` controls.
 
@@ -59,9 +60,24 @@ Account creation and its welcome ledger entry commit together. Generation charge
 
 The app uses Auth.js/NextAuth v5 with JWT sessions. Credentials authentication works locally; OAuth providers are registered only when both credentials are present.
 
+**Invite-only is the default.** Set `FIGURE_INVITE_ONLY=true` in `.env` for production. An explicit `false` enables public registration for development; invalid values fail configuration. Existing members retain access when invite-only is enabled. New accounts require a seven-day, email-bound, single-use invitation. Tokens are stored only as SHA-256 digests and are consumed in the same transaction as account creation and the welcome credit grant.
+
+Create the first administrator **only from the deployment CLI**:
+
+```bash
+read -rsp "Administrator password: " ADMIN_PASSWORD; printf '\n'
+printf '%s' "$ADMIN_PASSWORD" | npm run bootstrap:admin -- --email you@example.com --password-stdin
+unset ADMIN_PASSWORD
+```
+
+This command can also promote an existing account; it replaces that account's password but preserves its credits and content. There is no bootstrap HTTP endpoint, environment default password, or automatic administrator seed. Administrators manage invitations at `/admin/invitations`; newly invited accounts are ordinary members. Share each link privately: no email delivery is claimed. Replacing a link invalidates the old one; accepted invitations cannot be reused.
+
+Google sign-in requires the provider's verified email before linking an existing member or accepting an active invitation. Invitation consumption is rechecked transactionally by the auth adapter. Unverified provider emails cannot bypass admission. Facebook sign-in is available only for already-linked accounts; it does not assert a verified email suitable for automatic account creation/linking. OAuth remains subject to real provider configuration and callback verification.
+
 ```dotenv
 AUTH_SECRET=replace-with-a-random-secret-at-least-32-characters
 AUTH_URL=http://localhost:3000
+FIGURE_INVITE_ONLY=true
 
 AUTH_GOOGLE_ID=
 AUTH_GOOGLE_SECRET=
@@ -161,6 +177,21 @@ SQLite and local storage require persistent volumes and a single application ins
 The automated gate does not certify external credentials, OAuth callback registration, cloud permissions, backups, or deployment capacity. Verify live planning, rendering, and spatial grounding against the intended Azure resource, plus each configured social provider, before release. Generation errors include a request ID; `CREDIT_REFUND_FAILED` means an administrator must reconcile that charge after restoring database access.
 
 Provide the production `.env` as a private file on the server or container, not as committed source or inherited application variables. Browser tests use their own isolated `.e2e/.env`, database and storage; they never replace the real application configuration.
+
+### WebStack VM: figure.genisisiq.com
+
+`.github/workflows/deploy-webstack.yml` verifies main-branch pushes and pull requests (tests, strict types, lint, production build, desktop/mobile workflows and container build). Only successful main-branch runs deploy, through Azure VM Run Command to resource group `WEBSTACK`, VM `WebStack`. It does not require opening SSH, storing a GitHub token on the VM, or exposing private media. Source is downloaded from this public repository at the exact verified commit SHA and built locally on the VM.
+
+One-time operator setup:
+
+1. Create a GitHub `production` environment restricted to `main`, with approval rules appropriate to your deployment. Configure an Azure application or managed identity federated credential with issuer `https://token.actions.githubusercontent.com` and audience `api://AzureADTokenExchange`. This repository uses GitHub's immutable OIDC subject: `repo:huangyingting@24954047/Figure@1317886445:environment:production`; inspect `gh api repos/huangyingting/Figure/actions/oidc/customization/sub` before recreating federation. The dedicated `webstack-gh-figure` identity uses this subject. Set environment variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID`. Grant only VM read and Run Command execution on this WebStack VM (Run Command is effectively root access; do not grant this identity subscription-wide Contributor).
+2. WebStack must have Docker Compose, Caddy, curl, tar, flock, systemd, and an existing `import /etc/caddy/sites/*.caddy` in its Caddyfile. DNS for `figure.genisisiq.com` must point to WebStack, with ports 80/443 reachable for Caddy TLS. The app binds only `127.0.0.1:3210`; do not publish the container port publicly.
+3. Create private `/opt/webstack/figure/.env` using `deploy/production.env.example`, with a fresh random `AUTH_SECRET` and your actual Azure/provider settings. This persistent file is the **only** application settings source and is mounted read-only at `/app/.env`; it is never embedded in a Docker layer or supplied through Compose `env_file`. Use a fresh `/opt/webstack/figure/data` directory for production, not the seeded local database. The deploy script sets ownership to container UID 1000 and permissions to 0600 for the environment file.
+4. Run the workflow, then bootstrap the administrator from WebStack: `printf '%s' "$ADMIN_PASSWORD" | docker compose -p figure --env-file /opt/webstack/figure/release.env -f /opt/webstack/figure/current/deploy/compose.yaml exec -T web npm run bootstrap:admin -- --email you@example.com --password-stdin`. Read the password silently as above and unset it afterwards. Never place it in a workflow, shell history, or repository variable.
+
+Deployments are serialized. Each image is tied to its commit; only Figure is stopped for a consistent SQLite backup and forward-only migration. The app must pass its database-backed `/api/health` check before Caddy reload and a public HTTPS check. The deploy script writes only `/etc/caddy/sites/figure.caddy`, refuses to overwrite a differing existing fragment, and never restarts unrelated apps. Failed releases attempt to restart the prior image; **database migrations are not automatically reversed**. Review compatibility and restore a verified backup manually if required. Backups remain under `/opt/webstack/figure/data/database-backups`; retain and prune them through an operator-approved policy. No image/system-wide Docker prune is performed.
+
+The first deployment intentionally fails if the private VM environment file or Azure OIDC configuration is missing. The workflow does not provision cloud identities, change subscription permissions, create default credentials, seed demo data, or claim live AI connectivity. For a legacy populated database, review/baseline migrations before enabling deployment.
 
 ### Interrupted generation recovery
 

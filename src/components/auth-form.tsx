@@ -15,7 +15,7 @@ type SocialProvider = "google" | "facebook";
 const socialButtonClass =
   "relative flex min-h-[48px] items-center justify-center gap-[11px] rounded-[10px] border border-line-dark bg-paper px-11 text-ui font-bold text-ink cursor-pointer transition-[border-color,background,box-shadow,transform] duration-150 hover:not-disabled:bg-[#fbf7ec] hover:not-disabled:shadow-[0_6px_18px_rgb(35_33_27_/_7%)] hover:not-disabled:-translate-y-px disabled:cursor-not-allowed disabled:opacity-55";
 
-export function AuthForm({ mode, social, callbackUrl = "/library", initialError = null }: { mode: "signin" | "register"; social: { google: boolean; facebook: boolean }; callbackUrl?: string; initialError?: string | null }) {
+export function AuthForm({ mode, social, callbackUrl = "/library", initialError = null, inviteOnly = false, invitation }: { mode: "signin" | "register"; social: { google: boolean; facebook: boolean }; callbackUrl?: string; initialError?: string | null; inviteOnly?: boolean; invitation?: { token: string; email: string } }) {
   const { t } = useI18n();
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -46,7 +46,7 @@ export function AuthForm({ mode, social, callbackUrl = "/library", initialError 
       if (mode === "register" && registeredEmail !== email) {
         const response = await fetch("/api/auth/register", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: formData.get("name"), email, password }),
+          body: JSON.stringify({ name: formData.get("name"), email, password, token: invitation?.token }),
         });
         if (!response.ok) {
           const payload = await response.json().catch(() => ({})) as { error?: string };
@@ -69,7 +69,7 @@ export function AuthForm({ mode, social, callbackUrl = "/library", initialError 
       <div className="text-center">
         <span className="mx-auto mb-[10px] grid h-[38px] w-[38px] place-items-center rounded-xl bg-pine-pale text-pine">✦</span>
         <p className="text-micro font-extrabold uppercase tracking-[0.13em] text-pine-dark">{mode === "signin" ? t("Welcome back") : t("Your visual learning space")}</p>
-        <h1 className="mt-[6px] mb-[5px] font-display text-[32px] font-[560] tracking-[-0.015em]">{mode === "signin" ? t("Sign in to Figure") : t("Create your account")}</h1>
+        <h1 className="mt-[6px] mb-[5px] font-display text-[32px] font-[560] tracking-[-0.015em]">{mode === "signin" ? t("Sign in to Figure") : invitation ? t("Accept your invitation") : t("Create your account")}</h1>
         <small className="block text-ui leading-[1.6] text-muted">{mode === "signin" ? t("Your collections and mastery streak are waiting.") : t("Start with 12 credits—enough for twelve new visual lessons.")}</small>
       </div>
       {hasSocial && (
@@ -91,12 +91,13 @@ export function AuthForm({ mode, social, callbackUrl = "/library", initialError 
       {hasSocial && <Divider className="my-[15px]">{t("or use email")}</Divider>}
       <form action={submit} className="grid gap-3">
         {mode === "register" && <Field label={t("Name")}><Input name="name" autoComplete="name" minLength={2} maxLength={60} required placeholder="Ada Lovelace" disabled={busy} /></Field>}
-        <Field label={t("Email")}><Input name="email" type="email" autoComplete="email" maxLength={254} required placeholder="you@example.com" disabled={busy} /></Field>
+        <Field label={t("Email")}><Input name="email" type="email" autoComplete="email" maxLength={254} required placeholder="you@example.com" defaultValue={invitation?.email} readOnly={Boolean(invitation)} disabled={busy} /></Field>
         <Field label={t("Password")}><Input name="password" type="password" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} maxLength={128} required placeholder={t("At least 8 characters")} disabled={busy} /></Field>
         {error && <FieldError>{error}</FieldError>}
         <Button type="submit" className="w-full" disabled={busy}>{pending ? <LoaderCircle className="spin" size={17} /> : <ArrowRight size={17} />}{mode === "signin" ? t("Sign in") : t("Create free account")}</Button>
       </form>
-      <p className="mt-4 flex items-center justify-center gap-[6px] border-t border-line pt-[15px] text-ui text-muted">{mode === "signin" ? t("New to Figure?") : t("Already have an account?")} <Link href={`${mode === "signin" ? "/register" : "/signin"}?${new URLSearchParams({ callbackUrl })}`} className="font-bold text-pine-dark">{mode === "signin" ? t("Create an account") : t("Sign in")}</Link></p>
+      {mode === "signin" && inviteOnly ? <p className="mt-4 border-t border-line pt-4 text-center text-ui text-muted">{t("Figure is invite-only. Ask an administrator for an invitation.")}</p> :
+        <p className="mt-4 flex items-center justify-center gap-[6px] border-t border-line pt-[15px] text-ui text-muted">{mode === "signin" ? t("New to Figure?") : t("Already have an account?")} <Link href={`${mode === "signin" ? "/register" : "/signin"}?${new URLSearchParams({ callbackUrl })}`} className="font-bold text-pine-dark">{mode === "signin" ? t("Create an account") : t("Sign in")}</Link></p>}
     </div>
   );
 }

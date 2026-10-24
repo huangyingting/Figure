@@ -2,7 +2,12 @@ import { loadApplicationEnv } from "../../scripts/application-env.mjs";
 
 export function getApplicationConfig() {
   const settings = loadApplicationEnv();
+  const inviteOnly = settings.FIGURE_INVITE_ONLY?.trim() || "true";
+  if (!["true", "false"].includes(inviteOnly)) {
+    throw new Error("FIGURE_INVITE_ONLY must be true or false.");
+  }
   return {
+    inviteOnly: inviteOnly === "true",
     databaseUrl: settings.DATABASE_URL,
     siteUrl: (settings.AUTH_URL || "http://localhost:3000").replace(/\/+$/, ""),
     auth: {

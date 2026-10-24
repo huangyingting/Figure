@@ -34,3 +34,9 @@ An allowance to generate one figure. A failed generation returns its consumed cr
 
 **Credit ledger**:
 The history explaining an account's credit balance. Each generation charge and its possible refund have a shared reference and occur at most once.
+
+**Account invitation**:
+An email-bound, expiring grant to create one account. Accepting it consumes the grant; revoking or replacing its link invalidates the previous link. An invitation grants membership, not administrator privileges.
+
+**Administrator**:
+A deployment-operator-appointed member who manages account invitations. Administrator status does not grant access to another member's private lessons or collections.

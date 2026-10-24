@@ -1,0 +1,87 @@
+name: Verify and deploy Figure to WebStack
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: figure-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: Configure isolated build settings
+        run: |
+          cp .env.example .env
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from "node:fs";
+          import { randomBytes } from "node:crypto";
+          writeFileSync(".env", readFileSync(".env", "utf8").replace(/^AUTH_SECRET=.*$/m, `AUTH_SECRET=${randomBytes(48).toString("hex")}`), { mode: 0o600 });
+          NODE
+      - run: npm run check
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - name: Verify container build
+        run: docker build --tag figure:verified .
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment:
+      name: production
+      url: https://figure.genisisiq.com
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Validate Azure deployment settings
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          if [[ -z "$AZURE_CLIENT_ID" || -z "$AZURE_TENANT_ID" || -z "$AZURE_SUBSCRIPTION_ID" ]]; then
+            echo "::error::Set AZURE_CLIENT_ID, AZURE_TENANT_ID, and AZURE_SUBSCRIPTION_ID variables for the production environment."
+            exit 1
+          fi
+      - uses: azure/login@eec3c95657c1536435858eda1f3ff5437fee8474 # v2.3.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy verified commit through Azure VM agent
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          az vm run-command invoke \
+            --resource-group WEBSTACK --name WebStack \
+            --command-id RunShellScript \
+            --scripts @scripts/deploy-webstack.sh \
+            --parameters "release=$RELEASE_SHA" \
+            --output json > deploy-result.json
+          # Azure can return HTTP success even when the guest script fails.
+          node --input-type=module <<'NODE'
+            import{readFileSync}from"node:fs";
+            const result=JSON.parse(readFileSync("deploy-result.json","utf8"));
+            const messages=(result.value||[]).map(v=>v.message||"").join("\n");
+            console.log(messages);
+            if(!messages.includes(`Figure release ${process.env.RELEASE_SHA} is healthy at https://figure.genisisiq.com`))process.exit(1);
+          NODE

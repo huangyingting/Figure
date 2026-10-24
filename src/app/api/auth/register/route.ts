@@ -1,18 +1,9 @@
-import { hash } from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { z } from "zod";
-
-import { SIGNUP_CREDIT_ENTRY } from "@/lib/credits";
+import { AdmissionError, registerAccount, registrationSchema } from "@/lib/account-admission";
+import { BodyTooLargeError, readJson } from "@/lib/http";
 import { requestTranslator } from "@/lib/i18n-shared";
-import { prisma } from "@/lib/prisma";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
-
-const registrationSchema = z.object({
-  name: z.string().trim().min(2).max(60),
-  email: z.string().trim().email().transform((value) => value.toLowerCase()),
-  password: z.string().min(8).max(128),
-});
 
 export async function POST(request: Request) {
   const t = requestTranslator(request);
@@ -24,25 +15,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const parsed = registrationSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return NextResponse.json({ error: t("Invalid registration.") }, { status: 400 });
-  }
-  const existing = await prisma.user.findUnique({ where: { email: parsed.data.email }, select: { id: true } });
-  if (existing) return NextResponse.json({ error: t("An account already exists for this email.") }, { status: 409 });
-
-  const passwordHash = await hash(parsed.data.password, 12);
   try {
-    await prisma.user.create({
-      data: {
-        name: parsed.data.name,
-        email: parsed.data.email,
-        passwordHash,
-        creditLedger: { create: SIGNUP_CREDIT_ENTRY },
-      },
-      select: { id: true },
-    });
+    const parsed = registrationSchema.safeParse(await readJson(request, 8192));
+    if (!parsed.success) return NextResponse.json({ error: t("Invalid registration.") }, { status: 400 });
+    await registerAccount(parsed.data);
   } catch (error) {
+    if (error instanceof AdmissionError) {
+      return NextResponse.json({ error: t(error.message) }, { status: error.status });
+    }
+    if (error instanceof BodyTooLargeError || error instanceof SyntaxError) {
+      return NextResponse.json({ error: t("Invalid registration.") }, { status: error instanceof BodyTooLargeError ? 413 : 400 });
+    }
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return NextResponse.json({ error: t("An account already exists for this email.") }, { status: 409 });
     }

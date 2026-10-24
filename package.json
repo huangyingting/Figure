@@ -17,6 +17,7 @@
     "db:push": "node scripts/prisma.mjs db push",
     "db:seed": "tsx prisma/seed.ts",
     "setup:local": "node scripts/setup-local.mjs",
+    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts",
     "credits:recover": "tsx scripts/recover-generation-credit.ts",
     "demo:generate": "tsx scripts/generate-demo-pump.ts",
     "azure:check": "tsx scripts/check-azure.ts",
