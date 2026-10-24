@@ -83,7 +83,10 @@ if ! caddy validate --config /etc/caddy/Caddyfile; then
   false
 fi
 systemctl reload caddy
-curl --fail --silent --show-error --retry 5 --retry-delay 3 "https://figure.genisisiq.com/api/health"
+# The first Caddy reload starts asynchronous certificate issuance.
+curl --fail --silent --show-error --retry 30 --retry-all-errors \
+  --retry-delay 5 --retry-max-time 180 --max-time 15 \
+  "https://figure.genisisiq.com/api/health"
 printf 'FIGURE_IMAGE=%s\n' "$image" > "$root/release.env"
 ln -sfn "$release" "$root/current"
 trap - ERR
